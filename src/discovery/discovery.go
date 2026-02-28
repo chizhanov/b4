@@ -299,6 +299,8 @@ func (ds *DiscoverySuite) runPhase2(families []StrategyFamily) map[StrategyFamil
 		switch family {
 		case FamilyFakeSNI:
 			bestParams[family] = ds.optimizeFakeSNI()
+		case FamilyCombo:
+			bestParams[family] = ds.optimizeCombo()
 		case FamilyTCPFrag:
 			bestParams[family] = ds.optimizeTCPFrag()
 		case FamilyTLSRec:
@@ -315,7 +317,7 @@ func (ds *DiscoverySuite) optimizeFakeSNI() ConfigPreset {
 	log.DiscoveryLogf("  Optimizing FakeSNI with binary search")
 
 	ds.CheckSuite.mu.Lock()
-	ds.TotalChecks += 9
+	ds.TotalChecks += 10
 	ds.CheckSuite.mu.Unlock()
 
 	base := baseConfig()
@@ -344,7 +346,7 @@ func (ds *DiscoverySuite) optimizeFakeSNI() ConfigPreset {
 	basePreset.Config.Faking.TTL = optimalTTL
 	basePreset.Name = fmt.Sprintf("fake-ttl%d-optimized", optimalTTL)
 
-	strategies := []string{"pastseq", "ttl", "randseq"}
+	strategies := []string{"pastseq", "timestamp", "ttl", "randseq"}
 	var bestStrategy string = "pastseq"
 	var bestSpeed = speed
 
@@ -356,6 +358,9 @@ func (ds *DiscoverySuite) optimizeFakeSNI() ConfigPreset {
 		preset := basePreset
 		preset.Name = fmt.Sprintf("fake-%s-ttl%d", strat, optimalTTL)
 		preset.Config.Faking.Strategy = strat
+		if strat == "timestamp" {
+			preset.Config.Faking.TimestampDecrease = 600000
+		}
 
 		result := ds.testPresetWithBestPayload(preset)
 		ds.storeResult(preset, result)
@@ -367,10 +372,131 @@ func (ds *DiscoverySuite) optimizeFakeSNI() ConfigPreset {
 	}
 
 	basePreset.Config.Faking.Strategy = bestStrategy
+	if bestStrategy == "timestamp" {
+		basePreset.Config.Faking.TimestampDecrease = 600000
+	}
 	basePreset.Name = fmt.Sprintf("fake-%s-ttl%d-optimized", bestStrategy, optimalTTL)
 
 	log.DiscoveryLogf("  Best FakeSNI: TTL=%d, strategy=%s (%.2f KB/s)", optimalTTL, bestStrategy, bestSpeed/1024)
 	return basePreset
+}
+
+func (ds *DiscoverySuite) optimizeCombo() ConfigPreset {
+	log.DiscoveryLogf("  Optimizing Combo with TTL binary search + strategy rotation")
+
+	// TTL probe (5 iterations) + 4 strategies + 3x3 shuffle/delay variants = ~21 checks
+	ds.CheckSuite.mu.Lock()
+	ds.TotalChecks += 21
+	ds.CheckSuite.mu.Unlock()
+
+	combo := comboFrag()
+	base := baseConfig()
+	base.Faking.SNI = true
+	base.Faking.Strategy = "pastseq"
+	base.Faking.SeqOffset = 10000
+	base.Faking.SNISeqLength = 1
+	base.Faking.SNIType = ds.bestPayload
+	base.Fragmentation = combo
+	base.TCP = config.TCPConfig{
+		ConnBytesLimit: 19,
+		Seg2Delay:      20,
+		Seg2DelayMax:   60,
+	}
+
+	basePreset := ConfigPreset{
+		Name:   "combo-optimize",
+		Family: FamilyCombo,
+		Phase:  PhaseOptimize,
+		Config: base,
+	}
+
+	// Step 1: Find optimal TTL via binary search
+	optimalTTL, speed := ds.findOptimalTTL(basePreset)
+	if optimalTTL == 0 {
+		log.DiscoveryLogf("  No working TTL found for Combo, falling back to preset optimization")
+		return ds.optimizeWithPresets(FamilyCombo)
+	}
+
+	basePreset.Config.Faking.TTL = optimalTTL
+	basePreset.Name = fmt.Sprintf("combo-ttl%d-optimized", optimalTTL)
+
+	// Step 2: Test faking strategies with optimal TTL
+	bestStrategy, bestSpeed := ds.optimizeComboStrategy(basePreset, optimalTTL, speed)
+	basePreset.Config.Faking.Strategy = bestStrategy
+	if bestStrategy == "timestamp" {
+		basePreset.Config.Faking.TimestampDecrease = 600000
+	}
+
+	// Step 3: Test shuffle modes and delays with best strategy + TTL
+	bestShuffle, bestDelay, bestSpeed := ds.optimizeComboShuffleDelay(basePreset, optimalTTL, bestStrategy, bestSpeed)
+	basePreset.Config.Fragmentation.Combo.ShuffleMode = bestShuffle
+	basePreset.Config.Fragmentation.Combo.FirstDelayMs = bestDelay
+	basePreset.Name = fmt.Sprintf("combo-%s-ttl%d-optimized", bestStrategy, optimalTTL)
+
+	log.DiscoveryLogf("  Best Combo: TTL=%d, strategy=%s, shuffle=%s, delay=%d (%.2f KB/s)",
+		optimalTTL, bestStrategy, bestShuffle, bestDelay, bestSpeed/1024)
+	return basePreset
+}
+
+func (ds *DiscoverySuite) optimizeComboStrategy(basePreset ConfigPreset, optimalTTL uint8, initialSpeed float64) (string, float64) {
+	strategies := []string{"pastseq", "timestamp", "ttl", "randseq"}
+	bestStrategy := "pastseq"
+	bestSpeed := initialSpeed
+
+	for _, strat := range strategies {
+		if strat == "pastseq" {
+			continue // Already tested during TTL search
+		}
+
+		preset := basePreset
+		preset.Name = fmt.Sprintf("combo-%s-ttl%d", strat, optimalTTL)
+		preset.Config.Faking.Strategy = strat
+		if strat == "timestamp" {
+			preset.Config.Faking.TimestampDecrease = 600000
+		}
+
+		result := ds.testPresetWithBestPayload(preset)
+		ds.storeResult(preset, result)
+
+		if result.Status == CheckStatusComplete && result.Speed > bestSpeed {
+			bestStrategy = strat
+			bestSpeed = result.Speed
+		}
+	}
+
+	return bestStrategy, bestSpeed
+}
+
+func (ds *DiscoverySuite) optimizeComboShuffleDelay(basePreset ConfigPreset, optimalTTL uint8, strategy string, initialSpeed float64) (string, int, float64) {
+	shuffleModes := []string{"middle", "full", "edges"}
+	delays := []int{30, 100, 200}
+	bestShuffle := basePreset.Config.Fragmentation.Combo.ShuffleMode
+	bestDelay := basePreset.Config.Fragmentation.Combo.FirstDelayMs
+	bestSpeed := initialSpeed
+
+	for _, mode := range shuffleModes {
+		for _, d := range delays {
+			if mode == bestShuffle && d == bestDelay {
+				continue
+			}
+
+			preset := basePreset
+			preset.Name = fmt.Sprintf("combo-%s-%s-d%d-ttl%d", strategy, mode, d, optimalTTL)
+			preset.Config.Fragmentation.Combo.ShuffleMode = mode
+			preset.Config.Fragmentation.Combo.FirstDelayMs = d
+
+			result := ds.testPresetWithBestPayload(preset)
+			ds.storeResult(preset, result)
+
+			if result.Status == CheckStatusComplete && result.Speed > bestSpeed {
+				bestShuffle = mode
+				bestDelay = d
+				bestSpeed = result.Speed
+			}
+		}
+	}
+
+	return bestShuffle, bestDelay, bestSpeed
 }
 
 func (ds *DiscoverySuite) optimizeTCPFrag() ConfigPreset {

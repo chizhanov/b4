@@ -39,7 +39,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -65,7 +64,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:               true,
-					TTL:               8,
 					Strategy:          "timestamp",
 					SeqOffset:         10000,
 					SNISeqLength:      1,
@@ -92,7 +90,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "randseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -118,7 +115,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -145,7 +141,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:               true,
-					TTL:               8,
 					Strategy:          "timestamp",
 					SeqOffset:         10000,
 					SNISeqLength:      1,
@@ -179,7 +174,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -211,7 +205,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:               true,
-					TTL:               8,
 					Strategy:          "timestamp",
 					SeqOffset:         10000,
 					SNISeqLength:      1,
@@ -244,7 +237,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -279,7 +271,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -313,7 +304,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -343,7 +333,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          8,
 					Strategy:     "pastseq",
 					SeqOffset:    10000,
 					SNISeqLength: 1,
@@ -394,7 +383,6 @@ func GetPhase1Presets() []ConfigPreset {
 				},
 				Faking: config.FakingConfig{
 					SNI:          true,
-					TTL:          7,
 					Strategy:     "pastseq",
 					SeqOffset:    1000000,
 					SNISeqLength: 12,
@@ -435,7 +423,6 @@ func GetPhase1Presets() []ConfigPreset {
 				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:               true,
-					TTL:               8,
 					Strategy:          "timestamp",
 					SeqOffset:         10000,
 					SNISeqLength:      1,
