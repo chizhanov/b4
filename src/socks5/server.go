@@ -66,12 +66,26 @@ type Server struct {
 
 	udpAssocs   map[string]*udpAssoc
 	udpAssocsMu sync.Mutex
+
+	udpRelays   map[string]*udpRelay
+	udpRelaysMu sync.Mutex
 }
 
 type udpAssoc struct {
 	clientAddr *net.UDPAddr
 	lastActive time.Time
 	cancel     context.CancelFunc
+}
+
+type udpRelay struct {
+	conn       *net.UDPConn
+	destAddr   *net.UDPAddr
+	clientAddr *net.UDPAddr
+	dest       string
+	bytesSent  int
+	bytesRecv  int
+	lastActive time.Time
+	mu         sync.Mutex
 }
 
 // NewServer creates a new SOCKS5 server.
@@ -81,6 +95,7 @@ func NewServer(cfg *config.Socks5Config, fullCfg *config.Config) *Server {
 		fullCfg:   fullCfg,
 		connSem:   make(chan struct{}, maxConnections),
 		udpAssocs: make(map[string]*udpAssoc),
+		udpRelays: make(map[string]*udpRelay),
 	}
 }
 
@@ -145,6 +160,13 @@ func (s *Server) Stop() error {
 	}
 	s.udpAssocs = make(map[string]*udpAssoc)
 	s.udpAssocsMu.Unlock()
+
+	s.udpRelaysMu.Lock()
+	for _, r := range s.udpRelays {
+		r.conn.Close()
+	}
+	s.udpRelays = make(map[string]*udpRelay)
+	s.udpRelaysMu.Unlock()
 
 	return firstErr
 }

@@ -24,7 +24,7 @@ func (s *Server) handleUDPAssociate(conn net.Conn) error {
 		return fmt.Errorf("send UDP reply: %w", err)
 	}
 
-	log.Tracef("SOCKS5 UDP associate from %s", assocKey)
+	log.Debugf("SOCKS5 UDP ASSOCIATE from %s, UDP relay address: %s", assocKey, s.udpConn.LocalAddr())
 
 	doneCh := make(chan struct{})
 	var once sync.Once
@@ -60,7 +60,7 @@ func (s *Server) handleUDPAssociate(conn net.Conn) error {
 	s.udpAssocsMu.Unlock()
 	assocCancel()
 
-	log.Tracef("SOCKS5 UDP associate closed: %s", assocKey)
+	log.Debugf("SOCKS5 UDP associate closed: %s", assocKey)
 	return nil
 }
 
@@ -94,13 +94,11 @@ func (s *Server) handleUDPPacket(pkt []byte, from *net.UDPAddr) {
 		return // reserved must be 0
 	}
 	if pkt[2] != 0 {
-		log.Tracef("SOCKS5 UDP fragmentation not supported")
-		return
+		return // fragmentation not supported
 	}
 
 	dest, dataOff, err := parseUDPAddress(pkt)
 	if err != nil {
-		log.Tracef("SOCKS5 UDP parse address: %v", err)
 		return
 	}
 
@@ -109,7 +107,6 @@ func (s *Server) handleUDPPacket(pkt []byte, from *net.UDPAddr) {
 	// Find the association for this client
 	assoc := s.findAssoc(from)
 	if assoc == nil {
-		log.Tracef("SOCKS5 UDP no association for %s", from)
 		return
 	}
 
@@ -136,29 +133,127 @@ func (s *Server) findAssoc(addr *net.UDPAddr) *udpAssoc {
 	return nil
 }
 
-// forwardUDP sends the payload to the destination and relays one response back.
+// forwardUDP sends the payload to the destination.
+// Uses a shared connection per destination to properly handle responses.
 func (s *Server) forwardUDP(data []byte, dest string, clientAddr *net.UDPAddr) {
 	destUDP, err := net.ResolveUDPAddr("udp", dest)
 	if err != nil {
-		log.Tracef("SOCKS5 UDP resolve %s: %v", dest, err)
 		return
 	}
 
-	remote, err := net.DialUDP("udp", nil, destUDP)
+	// Get or create a relay connection for this destination
+	relay := s.getOrCreateRelay(dest, destUDP, clientAddr)
+	if relay == nil {
+		return
+	}
+
+	// Send data to destination
+	sent, err := relay.conn.Write(data)
 	if err != nil {
-		log.Tracef("SOCKS5 UDP dial %s: %v", dest, err)
-		return
-	}
-	defer remote.Close()
-
-	if _, err = remote.Write(data); err != nil {
-		log.Tracef("SOCKS5 UDP send to %s: %v", dest, err)
 		return
 	}
 
-	log.Tracef("SOCKS5 UDP forwarded %d bytes to %s", len(data), dest)
+	relay.mu.Lock()
+	relay.bytesSent += sent
+	relay.lastActive = time.Now()
+	relay.mu.Unlock()
+}
 
-	// Extract client info and destination
+// getOrCreateRelay gets or creates a UDP relay connection for a destination
+func (s *Server) getOrCreateRelay(dest string, destAddr *net.UDPAddr, clientAddr *net.UDPAddr) *udpRelay {
+	s.udpRelaysMu.Lock()
+	defer s.udpRelaysMu.Unlock()
+
+	// Use client IP + destination as key to support multiple clients
+	relayKey := clientAddr.IP.String() + "->" + dest
+
+	if relay, exists := s.udpRelays[relayKey]; exists {
+		return relay
+	}
+
+	// Create new relay connection
+	conn, err := net.DialUDP("udp", nil, destAddr)
+	if err != nil {
+		return nil
+	}
+
+	relay := &udpRelay{
+		conn:       conn,
+		destAddr:   destAddr,
+		clientAddr: clientAddr,
+		dest:       dest,
+		lastActive: time.Now(),
+	}
+
+	s.udpRelays[relayKey] = relay
+
+	// Start response handler for this relay
+	go s.handleUDPRelay(relay, relayKey)
+
+	return relay
+}
+
+// handleUDPRelay continuously reads responses from destination and forwards to client
+func (s *Server) handleUDPRelay(relay *udpRelay, relayKey string) {
+	defer func() {
+		relay.conn.Close()
+		s.udpRelaysMu.Lock()
+		delete(s.udpRelays, relayKey)
+		s.udpRelaysMu.Unlock()
+	}()
+
+	buf := make([]byte, 65535)
+	for {
+		// Set read deadline
+		readTimeout := time.Duration(s.cfg.UDPReadTimeout) * time.Second
+		if readTimeout <= 0 {
+			readTimeout = 5 * time.Second
+		}
+		relay.conn.SetReadDeadline(time.Now().Add(readTimeout))
+
+		n, _, err := relay.conn.ReadFromUDP(buf)
+		if err != nil {
+			// Check if server is shutting down
+			select {
+			case <-s.ctx.Done():
+				return
+			default:
+			}
+
+			// Timeout - check if relay is still active
+			relay.mu.Lock()
+			inactive := time.Since(relay.lastActive)
+			relay.mu.Unlock()
+
+			if inactive > 30*time.Second {
+				return
+			}
+			continue
+		}
+
+		// Build SOCKS5 UDP response header + payload
+		reply := buildUDPReply(buf[:n], relay.destAddr)
+
+		// Send response back to client
+		_, err = s.udpConn.WriteToUDP(reply, relay.clientAddr)
+		if err != nil {
+			log.Errorf("SOCKS5 UDP failed to reply to client %s: %v", relay.clientAddr, err)
+			continue
+		}
+
+		relay.mu.Lock()
+		relay.bytesRecv += n
+		relay.lastActive = time.Now()
+		relay.mu.Unlock()
+
+		// Log metrics
+		s.logUDPMetrics(relay.clientAddr, relay.dest, relay.bytesSent, n)
+	}
+}
+
+// logUDPMetrics logs UDP connection metrics
+func (s *Server) logUDPMetrics(clientAddr *net.UDPAddr, dest string, sent, received int) {
+	// Extract client info and destination for logging/metrics
 	clientAddrStr := clientAddr.String()
 	clientHost := clientAddr.IP.String()
 	clientPort := clientAddr.Port
@@ -192,33 +287,14 @@ func (s *Server) forwardUDP(data []byte, dest string, clientAddr *net.UDPAddr) {
 		log.Infof(",P-UDP,%s,%s,%s:%d,%s,%s:%d,", sniTarget, domain, clientHost, clientPort, ipTarget, destHost, destPort)
 	}
 
-	// Also log in human-readable format
-	log.Infof("[SOCKS5-UDP] Client: %s -> Destination: %s (%d bytes, Set: %s)", clientAddrStr, dest, len(data), setName)
+	// Also log in human-readable format (debug level)
+	log.Debugf("[SOCKS5-UDP] Client: %s -> Destination: %s (%d bytes sent, %d bytes received, Set: %s)", clientAddrStr, dest, sent, received, setName)
 
 	// Record connection in metrics for UI display
 	m := getMetricsCollector()
 	if m != nil {
 		matched := matchedSNI || matchedIP
 		m.RecordConnection("P-UDP", domain, clientAddrStr, dest, matched, "", setName)
-	}
-
-	// Wait for a response
-	readTimeout := time.Duration(s.cfg.UDPReadTimeout) * time.Second
-	if readTimeout <= 0 {
-		readTimeout = 5 * time.Second
-	}
-	remote.SetReadDeadline(time.Now().Add(readTimeout))
-
-	resp := make([]byte, 65535)
-	n, err := remote.Read(resp)
-	if err != nil {
-		return // timeout is normal for UDP
-	}
-
-	// Build SOCKS5 UDP response header + payload
-	reply := buildUDPReply(resp[:n], destUDP)
-	if _, err := s.udpConn.WriteToUDP(reply, clientAddr); err != nil {
-		log.Tracef("SOCKS5 UDP reply to client: %v", err)
 	}
 }
 
@@ -282,7 +358,7 @@ func buildUDPReply(data []byte, from *net.UDPAddr) []byte {
 	return append(hdr, data...)
 }
 
-// cleanupLoop removes stale UDP associations periodically.
+// cleanupLoop removes stale UDP associations and relays periodically.
 func (s *Server) cleanupLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -300,14 +376,29 @@ func (s *Server) cleanupLoop() {
 		}
 
 		now := time.Now()
+
+		// Clean up stale associations
 		s.udpAssocsMu.Lock()
 		for key, a := range s.udpAssocs {
 			if now.Sub(a.lastActive) > timeout {
-				log.Tracef("SOCKS5 UDP association timed out: %s", key)
 				a.cancel()
 				delete(s.udpAssocs, key)
 			}
 		}
 		s.udpAssocsMu.Unlock()
+
+		// Clean up stale relays
+		s.udpRelaysMu.Lock()
+		for key, r := range s.udpRelays {
+			r.mu.Lock()
+			inactive := now.Sub(r.lastActive)
+			r.mu.Unlock()
+
+			if inactive > timeout {
+				r.conn.Close()
+				delete(s.udpRelays, key)
+			}
+		}
+		s.udpRelaysMu.Unlock()
 	}
 }
