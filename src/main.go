@@ -167,6 +167,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 		metrics.RecordEvent("error", fmt.Sprintf("Failed to start SOCKS5 server: %v", err))
 		return log.Errorf("failed to start SOCKS5 server: %w", err)
 	}
+	handler.SetSocks5Server(socks5Server)
 
 	log.Infof("B4 is running. Press Ctrl+C to stop")
 	metrics.RecordEvent("info", "B4 is fully operational")

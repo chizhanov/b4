@@ -63,9 +63,8 @@ type Server struct {
 	activeConns atomic.Int64
 	connSem     chan struct{} // semaphore for connection limiting
 
-	bufferPool  sync.Pool
-	matcher     *sni.SuffixSet
-	matcherOnce sync.Once
+	bufferPool sync.Pool
+	matcher    atomic.Value // stores *sni.SuffixSet
 }
 
 // NewServer creates a new SOCKS5 server.
@@ -91,6 +90,11 @@ func (s *Server) Start() error {
 
 	addr := net.JoinHostPort(s.cfg.System.Socks5.BindAddress, strconv.Itoa(s.cfg.System.Socks5.Port))
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+
+	// Build initial matcher from current config
+	if m := buildMatcher(s.cfg); m != nil {
+		s.matcher.Store(m)
+	}
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -363,18 +367,31 @@ func (s *Server) relay(a, b net.Conn) error {
 
 // --- Set matching ---
 
-// getMatcher returns the cached SuffixSet matcher, building it once on first use.
 func (s *Server) getMatcher() *sni.SuffixSet {
-	s.matcherOnce.Do(func() {
-		if len(s.cfg.Sets) > 0 {
-			s.matcher = sni.NewSuffixSet(s.cfg.Sets)
-		}
-	})
-	return s.matcher
+	if v := s.matcher.Load(); v != nil {
+		return v.(*sni.SuffixSet)
+	}
+	return nil
 }
 
-// matchDestination checks if destination matches any configured sets.
-// Returns (matchedSNI, sniTarget, matchedIP, ipTarget).
+func buildMatcher(cfg *config.Config) *sni.SuffixSet {
+	if len(cfg.Sets) > 0 {
+		return sni.NewSuffixSet(cfg.Sets)
+	}
+	return nil
+}
+
+func (s *Server) UpdateConfig(newCfg *config.Config) {
+	newMatcher := buildMatcher(newCfg)
+	if newMatcher != nil {
+		if old := s.getMatcher(); old != nil {
+			newMatcher.TransferLearnedIPs(old)
+		}
+		s.matcher.Store(newMatcher)
+	}
+	log.Infof("SOCKS5 matcher refreshed from config update")
+}
+
 func (s *Server) matchDestination(dest string) (bool, string, bool, string) {
 	matcher := s.getMatcher()
 	if matcher == nil {

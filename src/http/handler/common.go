@@ -18,9 +18,14 @@ var (
 	Date    = "unknown"
 )
 
+type ConfigRefresher interface {
+	UpdateConfig(newCfg *config.Config)
+}
+
 var (
-	globalPool        *nfq.Pool
-	tablesRefreshFunc func() error
+	globalPool         *nfq.Pool
+	globalSocks5Server ConfigRefresher
+	tablesRefreshFunc  func() error
 )
 
 func setJsonHeader(w http.ResponseWriter) {
@@ -35,6 +40,10 @@ func writeJsonError(w http.ResponseWriter, status int, message string) {
 
 func SetNFQPool(pool *nfq.Pool) {
 	globalPool = pool
+}
+
+func SetSocks5Server(s ConfigRefresher) {
+	globalSocks5Server = s
 }
 
 func NewAPIHandler(cfg *config.Config) *API {
