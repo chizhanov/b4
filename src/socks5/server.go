@@ -57,7 +57,6 @@ type Server struct {
 	cfg      *config.Socks5Config
 	fullCfg  *config.Config
 	listener net.Listener
-	udpConn  *net.UDPConn
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -100,22 +99,9 @@ func (s *Server) Start() error {
 	}
 	s.listener = ln
 
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		ln.Close()
-		return fmt.Errorf("SOCKS5 UDP resolve: %w", err)
-	}
-	uc, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		ln.Close()
-		return fmt.Errorf("SOCKS5 UDP listen: %w", err)
-	}
-	s.udpConn = uc
-
-	log.Infof("SOCKS5 server listening on %s (TCP+UDP)", addr)
+	log.Infof("SOCKS5 server listening on %s", addr)
 
 	go s.acceptLoop()
-	go s.udpReadLoop()
 
 	return nil
 }
@@ -126,19 +112,11 @@ func (s *Server) Stop() error {
 		s.cancel()
 	}
 
-	var firstErr error
 	if s.listener != nil {
-		if err := s.listener.Close(); err != nil {
-			firstErr = err
-		}
-	}
-	if s.udpConn != nil {
-		if err := s.udpConn.Close(); err != nil && firstErr == nil {
-			firstErr = err
-		}
+		return s.listener.Close()
 	}
 
-	return firstErr
+	return nil
 }
 
 // --- TCP accept loop ---
@@ -176,6 +154,9 @@ func (s *Server) acceptLoop() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
+	clientAddr := conn.RemoteAddr().String()
+	log.Debugf("SOCKS5 new connection from %s", clientAddr)
+
 	// Set deadline for handshake only
 	if err := conn.SetDeadline(time.Now().Add(handshakeTime)); err != nil {
 		log.Tracef("SOCKS5 failed to set deadline: %v", err)
@@ -183,12 +164,12 @@ func (s *Server) handleConn(conn net.Conn) {
 	}
 
 	if err := s.authenticate(conn); err != nil {
-		log.Tracef("SOCKS5 auth failed from %s: %v", conn.RemoteAddr(), err)
+		log.Tracef("SOCKS5 auth failed from %s: %v", clientAddr, err)
 		return
 	}
 
 	if err := s.handleRequest(conn); err != nil {
-		log.Tracef("SOCKS5 request failed from %s: %v", conn.RemoteAddr(), err)
+		log.Tracef("SOCKS5 request failed from %s: %v", clientAddr, err)
 	}
 }
 
@@ -208,6 +189,8 @@ func (s *Server) authenticate(conn net.Conn) error {
 	if _, err := io.ReadFull(conn, methods); err != nil {
 		return fmt.Errorf("read methods: %w", err)
 	}
+
+	log.Debugf("SOCKS5 auth from %s: methods=%v", conn.RemoteAddr(), methods)
 
 	needAuth := s.cfg.Username != "" && s.cfg.Password != ""
 	var chosen byte = authNoAccept
@@ -237,6 +220,8 @@ func (s *Server) authenticate(conn net.Conn) error {
 	if chosen == authUserPass {
 		return s.subnegotiateUserPass(conn)
 	}
+
+	log.Debugf("SOCKS5 auth successful from %s (method: %d)", conn.RemoteAddr(), chosen)
 	return nil
 }
 
@@ -302,11 +287,13 @@ func (s *Server) handleRequest(conn net.Conn) error {
 		return fmt.Errorf("read address: %w", err)
 	}
 
+	log.Infof("SOCKS5 request from %s: cmd=%d, dest=%s", conn.RemoteAddr(), hdr[1], dest)
+
 	switch hdr[1] {
 	case cmdConnect:
 		return s.handleConnect(conn, dest)
 	case cmdUDPAssociate:
-		return s.handleUDPAssociate(conn)
+		return s.handleUDPAssociate(conn, dest)
 	default:
 		sendReply(conn, repCmdNotSupported, nil)
 		return fmt.Errorf("unsupported command %d", hdr[1])
@@ -392,9 +379,10 @@ func (s *Server) relay(a, b net.Conn) error {
 
 	cp := func(dst, src net.Conn) {
 		bufPtr := s.bufferPool.Get().(*[]byte)
+		buf := *bufPtr
 		defer s.bufferPool.Put(bufPtr)
 
-		_, err := io.CopyBuffer(dst, src, *bufPtr)
+		_, err := io.CopyBuffer(dst, src, buf)
 
 		// Signal the other direction to stop by closing the write half
 		if tc, ok := dst.(*net.TCPConn); ok {
