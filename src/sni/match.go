@@ -30,8 +30,9 @@ type SuffixSet struct {
 	multiSets  map[string][]*config.SetConfig // domain -> multiple sets (for source device priority)
 	regexes    []*regexWithSet
 	regexCache sync.Map
-	ipRanger   cidranger.Ranger
-	portRanges []portRange
+	ipRanger      cidranger.Ranger
+	portRanges    []portRange // UDP port ranges
+	tcpPortRanges []portRange // TCP port ranges
 
 	ipCache      map[string]*cacheEntry
 	ipCacheLRU   *list.List
@@ -158,35 +159,46 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 		}
 
 		if set.UDP.DPortFilter != "" {
-			ports := strings.Split(set.UDP.DPortFilter, ",")
-			for _, part := range ports {
-				part = strings.TrimSpace(part)
-				if part == "" {
-					continue
+			for _, part := range strings.Split(set.UDP.DPortFilter, ",") {
+				if pr, ok := parsePortRange(part, set); ok {
+					s.portRanges = append(s.portRanges, pr)
 				}
+			}
+		}
 
-				if strings.Contains(part, "-") {
-					bounds := strings.SplitN(part, "-", 2)
-					if len(bounds) == 2 {
-						min, err1 := strconv.Atoi(bounds[0])
-						max, err2 := strconv.Atoi(bounds[1])
-						if err1 == nil && err2 == nil {
-							if min >= 0 && max >= 0 && min <= max {
-								s.portRanges = append(s.portRanges, portRange{min: min, max: max, set: set})
-							}
-						}
-					}
-				} else {
-					port, err := strconv.Atoi(part)
-					if err == nil && port >= 0 {
-						s.portRanges = append(s.portRanges, portRange{min: port, max: port, set: set})
-					}
+		if set.TCP.DPortFilter != "" {
+			for _, part := range strings.Split(set.TCP.DPortFilter, ",") {
+				if pr, ok := parsePortRange(part, set); ok {
+					s.tcpPortRanges = append(s.tcpPortRanges, pr)
 				}
 			}
 		}
 	}
 
 	return s
+}
+
+func parsePortRange(part string, set *config.SetConfig) (portRange, bool) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return portRange{}, false
+	}
+	if strings.Contains(part, "-") {
+		bounds := strings.SplitN(part, "-", 2)
+		if len(bounds) == 2 {
+			min, err1 := strconv.Atoi(bounds[0])
+			max, err2 := strconv.Atoi(bounds[1])
+			if err1 == nil && err2 == nil && min >= 0 && max >= 0 && min <= max {
+				return portRange{min: min, max: max, set: set}, true
+			}
+		}
+	} else {
+		port, err := strconv.Atoi(part)
+		if err == nil && port >= 0 {
+			return portRange{min: port, max: port, set: set}, true
+		}
+	}
+	return portRange{}, false
 }
 
 func (s *SuffixSet) MatchUDPPort(dport uint16) (bool, *config.SetConfig) {
@@ -200,6 +212,22 @@ func (s *SuffixSet) MatchUDPPort(dport uint16) (bool, *config.SetConfig) {
 
 		matched := port >= r.min && port <= r.max
 		if matched {
+			return true, r.set
+		}
+	}
+
+	return false, nil
+}
+
+func (s *SuffixSet) MatchTCPPort(dport uint16) (bool, *config.SetConfig) {
+	if s == nil || len(s.tcpPortRanges) == 0 {
+		return false, nil
+	}
+
+	port := int(dport)
+
+	for _, r := range s.tcpPortRanges {
+		if port >= r.min && port <= r.max {
 			return true, r.set
 		}
 	}
@@ -523,7 +551,7 @@ func (s *SuffixSet) PortMatchesSet(dport uint16, targetSet *config.SetConfig) bo
 	return false
 }
 
-func (s *SuffixSet) MatchUDPPortOnly(dport uint16) (bool, *config.SetConfig) {
+func (s *SuffixSet) MatchUDPPorOtnly(dport uint16) (bool, *config.SetConfig) {
 	if s == nil || len(s.portRanges) == 0 {
 		return false, nil
 	}

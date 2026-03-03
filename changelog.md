@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.39.2] - 2026-03-03
+
+- IMPROVED: **Set Import/Export** — the exported JSON is now much shorter and easier to read. Only settings you actually changed are shown; everything else is left out since it uses defaults. A `b4_version` tag is included so you can tell which B4 version a shared set was made with.
+- IMPROVED: **Simpler import flow** — pasting a set JSON now applies it immediately (no more forgetting to click "Apply"). Added Copy and Paste buttons for quick sharing.
+
 ## [1.39.1] - 2026-03-02
 
 - ADDED: **MSS Clamping** — forces smaller packet sizes at the firewall level so that blocked content (like YouTube on smart TVs) can load correctly. Two options: enable **globally** for all devices in `Settings > Network > Global MSS Clamping`, or set a **per-device** size in the `Settings > Device Filtering` table (MSS column). Changes apply instantly without restarting.

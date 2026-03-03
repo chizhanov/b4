@@ -45,6 +45,7 @@ export {
   Layers as SetsIcon,
   Layers as ImportExportIcon,
   ContentCopy as CopyIcon,
+  ContentPaste as PasteIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
   Category as CategoryIcon,
