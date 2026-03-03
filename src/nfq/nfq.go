@@ -297,6 +297,11 @@ func (w *Worker) Start() error {
 				ipTarget := ""
 				sniTarget := ""
 
+				// Show port-matched set name in log
+				if !matchedIP && matched && set != nil {
+					ipTarget = set.Name
+				}
+
 				if cfg.IsTCPPort(dport) && len(payload) > 0 {
 					log.Tracef("TCP payload to %s: len=%d, first5=%x", dstStr, len(payload), payload[:min(5, len(payload))])
 					if len(payload) >= 5 && payload[0] == 0x16 {
@@ -433,6 +438,17 @@ func (w *Worker) Start() error {
 					}
 				}
 
+				// If IP matching didn't find a set, try UDP port-based set matching
+				matchedPort := false
+				if !matched {
+					if portMatched, portSet := matcher.MatchUDPPort(dport); portMatched {
+						matchedPort = true
+						matched = true
+						set = portSet
+						ipTarget = portSet.Name
+					}
+				}
+
 				isSTUN = stun.IsSTUNMessage(payload)
 
 				if host == "" {
@@ -450,7 +466,7 @@ func (w *Worker) Start() error {
 					}
 				}
 
-				if !matchedQUIC && matchedIP && set.UDP.FilterQUIC == "all" {
+				if !matchedQUIC && (matchedIP || matchedPort) && set.UDP.FilterQUIC == "all" {
 					if quic.IsInitial(payload) {
 						matchedQUIC = true
 					}
@@ -460,7 +476,7 @@ func (w *Worker) Start() error {
 					captureManager.CapturePayload(connKey, host, "quic", payload)
 				}
 
-				shouldHandle := (matchedIP || matchedQUIC) && !(isSTUN && set.UDP.FilterSTUN)
+				shouldHandle := (matchedIP || matchedQUIC || matchedPort) && !(isSTUN && set.UDP.FilterSTUN)
 
 				matched = shouldHandle
 
