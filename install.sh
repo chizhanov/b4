@@ -362,11 +362,19 @@ verify_checksum() {
 
 # --- Process management ---
 is_b4_running() {
+    # Try pgrep first (with and without -x for BusyBox compat)
     if command_exists pgrep; then
-        pgrep -x "$BINARY_NAME" >/dev/null 2>&1
-    else
-        ps 2>/dev/null | grep -v grep | grep -q "[/]${BINARY_NAME}\$\|[/]${BINARY_NAME}[[:space:]]"
+        pgrep -x "$BINARY_NAME" >/dev/null 2>&1 && return 0
+        pgrep -f "${BINARY_NAME}" >/dev/null 2>&1 && return 0
     fi
+    # Fallback: check ps output for the binary name
+    ps w 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
+    ps 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
+    # Check PID files
+    for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
+        [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2>/dev/null && return 0
+    done
+    return 1
 }
 
 stop_b4() {
@@ -2222,13 +2230,32 @@ action_update() {
 
 action_sysinfo() {
     log_header "B4 System Diagnostics"
-    log_sep
 
-    # OS info
-    log_detail "OS" "$(uname -s) $(uname -r)"
-    log_detail "Architecture" "$(uname -m)"
+    # --- System info ---
+    log_sep
+    log_detail "Hostname" "$(hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo 'unknown')"
+    log_detail "Kernel" "$(uname -r)"
+    log_detail "Architecture (raw)" "$(uname -m)"
+    log_detail "Architecture (b4)" "$(detect_architecture 2>/dev/null || echo 'unknown')"
     [ -f /etc/os-release ] && log_detail "Distribution" "$(. /etc/os-release && echo "$PRETTY_NAME")"
     [ -f /etc/openwrt_release ] && log_detail "OpenWrt" "$(. /etc/openwrt_release && echo "$DISTRIB_DESCRIPTION")"
+
+    # CPU
+    cpu_cores=""
+    if [ -f /proc/cpuinfo ]; then
+        cpu_cores=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
+    fi
+    [ -n "$cpu_cores" ] && log_detail "CPU cores" "$cpu_cores"
+
+    # Memory
+    if [ -f /proc/meminfo ]; then
+        mem_total=$(awk '/^MemTotal:/ {printf "%.0f", $2/1024}' /proc/meminfo 2>/dev/null)
+        mem_avail=$(awk '/^MemAvailable:/ {printf "%.0f", $2/1024}' /proc/meminfo 2>/dev/null)
+        [ -z "$mem_avail" ] && mem_avail=$(awk '/^MemFree:/ {printf "%.0f", $2/1024}' /proc/meminfo 2>/dev/null)
+        if [ -n "$mem_total" ]; then
+            log_detail "Memory" "${mem_total} MB (Available: ${mem_avail:-?} MB)"
+        fi
+    fi
 
     # Platform detection
     platform_auto_detect 2>/dev/null || true
@@ -2241,34 +2268,107 @@ action_sysinfo() {
         log_detail "Service type" "${B4_SERVICE_TYPE}"
     fi
 
+    # --- B4 status ---
     log_sep
 
-    # B4 installation status
     found_bin=""
-    for dir in /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
+    for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
+        [ -z "$dir" ] && continue
         if [ -f "${dir}/${BINARY_NAME}" ]; then
             found_bin="${dir}/${BINARY_NAME}"
-            ver=$("$found_bin" --version 2>&1 | head -1) || ver="unknown"
-            log_detail "B4 binary" "${found_bin} (${ver})"
             break
         fi
     done
-    [ -z "$found_bin" ] && log_detail "B4 binary" "${RED}not found${NC}"
 
-    if is_b4_running; then
-        log_detail "B4 status" "${GREEN}running${NC}"
+    if [ -n "$found_bin" ]; then
+        log_detail "Binary" "$found_bin"
+        ver=$("$found_bin" --version 2>&1 | head -1) || ver="unknown"
+        log_detail "Version" "$ver"
     else
-        log_detail "B4 status" "${YELLOW}not running${NC}"
+        log_detail "Binary" "${RED}not found${NC}"
     fi
 
-    # Config
-    for cfg in /etc/b4/b4.json /opt/etc/b4/b4.json; do
-        [ -f "$cfg" ] && log_detail "Config" "$cfg" && break
+    # Config file
+    cfg_file=""
+    for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -z "$cfg" ] && continue
+        [ -f "$cfg" ] && cfg_file="$cfg" && break
     done
+    [ -n "$cfg_file" ] && log_detail "Config" "$cfg_file"
+
+    # Running status + details from config and process
+    if is_b4_running; then
+        log_detail "Service status" "${GREEN}running${NC}"
+
+        # Get PID and process details
+        b4_pid=""
+        for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
+            if [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2>/dev/null; then
+                b4_pid=$(cat "$pf")
+                break
+            fi
+        done
+        [ -z "$b4_pid" ] && b4_pid=$(pgrep -x "$BINARY_NAME" 2>/dev/null | head -1)
+        [ -z "$b4_pid" ] && b4_pid=$(pgrep -f "${BINARY_NAME}" 2>/dev/null | head -1)
+
+        if [ -n "$b4_pid" ]; then
+            # Memory usage
+            if [ -f "/proc/${b4_pid}/status" ]; then
+                mem_kb=$(awk '/^VmRSS:/ {print $2}' "/proc/${b4_pid}/status" 2>/dev/null)
+                if [ -n "$mem_kb" ]; then
+                    mem_mb=$(awk "BEGIN {printf \"%.1f\", $mem_kb/1024}")
+                    log_detail "Memory usage" "${mem_mb} MB (PID: ${b4_pid})"
+                fi
+            fi
+
+            # Uptime
+            if [ -f "/proc/${b4_pid}/stat" ]; then
+                proc_start=$(awk '{print $22}' "/proc/${b4_pid}/stat" 2>/dev/null)
+                clk_tck=$(getconf CLK_TCK 2>/dev/null || echo 100)
+                sys_uptime=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
+                if [ -n "$proc_start" ] && [ -n "$sys_uptime" ] && [ "$clk_tck" -gt 0 ] 2>/dev/null; then
+                    proc_secs=$((proc_start / clk_tck))
+                    running_secs=$((sys_uptime - proc_secs))
+                    if [ "$running_secs" -ge 3600 ] 2>/dev/null; then
+                        hours=$((running_secs / 3600))
+                        mins=$(( (running_secs % 3600) / 60 ))
+                        log_detail "Uptime" "${hours}h ${mins}m"
+                    elif [ "$running_secs" -ge 60 ] 2>/dev/null; then
+                        mins=$((running_secs / 60))
+                        log_detail "Uptime" "${mins}m"
+                    elif [ "$running_secs" -ge 0 ] 2>/dev/null; then
+                        log_detail "Uptime" "${running_secs}s"
+                    fi
+                fi
+            fi
+        fi
+    else
+        log_detail "Service status" "${YELLOW}not running${NC}"
+    fi
+
+    # Config-derived info (queue number, worker threads, geodat paths)
+    if [ -n "$cfg_file" ] && command_exists jq; then
+        queue_num=$(jq -r '.system.queue_num // empty' "$cfg_file" 2>/dev/null)
+        workers=$(jq -r '.system.workers // empty' "$cfg_file" 2>/dev/null)
+        geosite=$(jq -r '.system.geo.sitedat_path // empty' "$cfg_file" 2>/dev/null)
+        geoip=$(jq -r '.system.geo.ipdat_path // empty' "$cfg_file" 2>/dev/null)
+
+        [ -n "$queue_num" ] && [ "$queue_num" != "null" ] && log_detail "Queue number" "$queue_num"
+        [ -n "$workers" ] && [ "$workers" != "null" ] && log_detail "Worker threads" "$workers"
+
+        if [ -n "$geosite" ] && [ "$geosite" != "null" ] && [ -f "$geosite" ]; then
+            size=$(ls -lh "$geosite" 2>/dev/null | awk '{print $5}')
+            log_detail "geosite.dat" "${geosite} (${size})"
+        fi
+        if [ -n "$geoip" ] && [ "$geoip" != "null" ] && [ -f "$geoip" ]; then
+            size=$(ls -lh "$geoip" 2>/dev/null | awk '{print $5}')
+            log_detail "geoip.dat" "${geoip} (${size})"
+        fi
+    fi
 
     log_sep
 
-    # Kernel modules
+    # --- Kernel modules ---
     echo ""
     log_info "Kernel modules:"
     for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
@@ -2297,7 +2397,7 @@ action_sysinfo() {
         fi
     fi
 
-    # Network tools
+    # --- Network tools ---
     echo ""
     log_info "Network tools:"
     for tool in iptables nft jq tar sha256sum; do
@@ -2335,7 +2435,7 @@ action_sysinfo() {
     detect_pkg_manager
     log_detail "Package manager" "${B4_PKG_MANAGER:-none}"
 
-    # Storage
+    # --- Storage ---
     echo ""
     log_info "Storage:"
     for dir in / /opt /tmp /jffs /mnt/sda1 /etc/storage; do

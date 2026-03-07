@@ -290,11 +290,19 @@ verify_checksum() {
 
 # --- Process management ---
 is_b4_running() {
+    # Try pgrep first (with and without -x for BusyBox compat)
     if command_exists pgrep; then
-        pgrep -x "$BINARY_NAME" >/dev/null 2>&1
-    else
-        ps 2>/dev/null | grep -v grep | grep -q "[/]${BINARY_NAME}\$\|[/]${BINARY_NAME}[[:space:]]"
+        pgrep -x "$BINARY_NAME" >/dev/null 2>&1 && return 0
+        pgrep -f "${BINARY_NAME}" >/dev/null 2>&1 && return 0
     fi
+    # Fallback: check ps output for the binary name
+    ps w 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
+    ps 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
+    # Check PID files
+    for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
+        [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2>/dev/null && return 0
+    done
+    return 1
 }
 
 stop_b4() {
