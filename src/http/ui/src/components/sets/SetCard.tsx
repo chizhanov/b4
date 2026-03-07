@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   CardActionArea,
+  Checkbox,
   Typography,
   Stack,
   IconButton,
@@ -45,6 +46,9 @@ interface SetCardProps {
   onDelete: () => void;
   onToggleEnabled: (enabled: boolean) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
 interface TargetBadgeProps {
@@ -109,6 +113,9 @@ export const SetCard = ({
   onDelete,
   onToggleEnabled,
   dragHandleProps,
+  selectionMode,
+  selected,
+  onSelect,
 }: SetCardProps) => {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const strategy = set.fragmentation.strategy;
@@ -135,7 +142,7 @@ export const SetCard = ({
         position: "relative",
         opacity: set.enabled ? 1 : 0.5,
         transition: "all 0.2s ease",
-        border: `1px solid ${colors.border.default}`,
+        border: `1px solid ${selectionMode && selected ? colors.secondary : colors.border.default}`,
         borderRadius: radius.md,
         bgcolor: set.enabled ? colors.background.paper : colors.background.dark,
         "&:hover": {
@@ -166,17 +173,34 @@ export const SetCard = ({
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            {...dragHandleProps}
-            sx={{
-              cursor: "grab",
-              color: colors.text.secondary,
-              display: "flex",
-              "&:hover": { color: colors.secondary },
-            }}
-          >
-            <DragIcon fontSize="small" />
-          </Box>
+          {selectionMode ? (
+            <Checkbox
+              size="small"
+              checked={selected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect?.();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              sx={{
+                color: colors.text.secondary,
+                "&.Mui-checked": { color: colors.secondary },
+                p: 0.5,
+              }}
+            />
+          ) : (
+            <Box
+              {...dragHandleProps}
+              sx={{
+                cursor: "grab",
+                color: colors.text.secondary,
+                display: "flex",
+                "&:hover": { color: colors.secondary },
+              }}
+            >
+              <DragIcon fontSize="small" />
+            </Box>
+          )}
 
           <Tooltip title={set.enabled ? "Disable" : "Enable"}>
             <Switch
@@ -200,9 +224,11 @@ export const SetCard = ({
 
         </Stack>
 
-        <IconButton size="small" onClick={handleMenuOpen}>
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
+        {!selectionMode && (
+          <IconButton size="small" onClick={handleMenuOpen}>
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        )}
 
         <Menu
           anchorEl={menuAnchor}
@@ -243,7 +269,7 @@ export const SetCard = ({
       </Box>
 
       {/* Clickable content area */}
-      <CardActionArea onClick={onEdit} sx={{ borderRadius: 0 }}>
+      <CardActionArea onClick={selectionMode ? onSelect : onEdit} sx={{ borderRadius: 0 }}>
         <CardContent sx={{ pt: 0, pb: 2 }}>
           {/* Name */}
           <Typography

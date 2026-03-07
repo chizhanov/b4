@@ -1,7 +1,8 @@
 # B4 - Bye Bye Big Bro
 
-## [1.39.3] - 2026-03-07
+## [1.40.0] - 2026-03-08
 
+- ADDED: **Mass delete sets** — you can now select multiple sets at once and delete them all together. Click the "Select" button in the toolbar, check the sets you want to remove, then click "Delete". Includes "Select All" for quick bulk cleanup.
 - ADDED: **Multidisorder mode** — sends fake overlap packets before every real segment (not just the first one), flooding DPI with garbage data so it can't reassemble your traffic correctly. Enable "Fake Per Segment" in Combo or Disorder fragmentation settings and choose how many fakes to send per segment.
 - ADDED: **New fake payload types** — two new options in Faking settings: "All Zeros" (sends empty-looking data) and "Inverted Original" (sends a flipped copy of the real data). Some networks respond better to these than the default payloads.
 - ADDED: New Discovery presets for multidisorder mode — Discovery can now automatically test these new techniques when searching for the best bypass configuration.
