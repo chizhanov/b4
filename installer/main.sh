@@ -25,8 +25,6 @@ main() {
             B4_BIN_DIR="${arg#*=}" ;;
         --data-dir=*)
             B4_DATA_DIR="${arg#*=}" ;;
-        --dry-run)
-            DRY_RUN=1 ;;
         --help | -h)
             _show_help
             exit 0 ;;

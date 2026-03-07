@@ -42,13 +42,13 @@ curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh 
 Or pass `--help` to get more information about the possible options.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh --help
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --help
 ```
 
 To remove B4:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh --remove
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --remove
 ```
 
 ### Installer options

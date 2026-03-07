@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh 
 Удалить B4:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh --remove
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --remove
 ```
 
 ### Опции установщика

@@ -56,7 +56,7 @@ action_update() {
         log_info "Latest: ${latest_ver}"
     fi
 
-    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -q "$latest_ver"; then
+    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -Fq "$latest_ver"; then
         log_ok "Already up to date"
         return 0
     fi
