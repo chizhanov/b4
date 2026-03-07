@@ -31,9 +31,9 @@ feature_geodat_run() {
     done
     echo ""
 
-    choice=$(read_input "Select source [2]: " "2")
+    read_input "Select source [2]: " "2"
 
-    base_url=$(echo "$GEODAT_SOURCES" | grep "^${choice}|" | cut -d'|' -f3)
+    base_url=$(echo "$GEODAT_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
     if [ -z "$base_url" ]; then
         log_warn "Invalid selection, using default"
         base_url=$(echo "$GEODAT_SOURCES" | grep "^2|" | cut -d'|' -f3)
@@ -51,7 +51,8 @@ feature_geodat_run() {
         fi
     fi
 
-    save_dir=$(read_input "Save directory [${save_dir}]: " "$save_dir")
+    read_input "Save directory [${save_dir}]: " "$save_dir"
+    save_dir="$_INPUT"
 
     ensure_dir "$save_dir" "Geodat directory" || return 1
 
@@ -119,8 +120,40 @@ _geodat_update_config() {
 }
 
 feature_geodat_remove() {
-    # Don't remove geodata files on uninstall — user may want them
-    return 0
+    # Read actual geodat paths from config (wherever user put them)
+    for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -f "$cfg" ] || continue
+        if command_exists jq; then
+            sitedat=$(jq -r '.system.geo.sitedat_path // empty' "$cfg" 2>/dev/null)
+            ipdat=$(jq -r '.system.geo.ipdat_path // empty' "$cfg" 2>/dev/null)
+            if [ -n "$sitedat" ] || [ -n "$ipdat" ]; then
+                _geodat_remove_files "$sitedat" "$ipdat"
+                return 0
+            fi
+        fi
+    done
+
+    # Fallback: check default locations
+    _geodat_remove_files "/etc/b4/geosite.dat" "/etc/b4/geoip.dat"
+    _geodat_remove_files "/opt/etc/b4/geosite.dat" "/opt/etc/b4/geoip.dat"
+}
+
+_geodat_remove_files() {
+    sitedat="$1"
+    ipdat="$2"
+    found=""
+    [ -n "$sitedat" ] && [ -f "$sitedat" ] && found="${found} ${sitedat}"
+    [ -n "$ipdat" ] && [ -f "$ipdat" ] && found="${found} ${ipdat}"
+    [ -z "$found" ] && return 0
+
+    log_info "Found geodata files:${found}"
+    if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove geodata files?" "y"; then
+        for f in $found; do
+            rm -f "$f" && log_info "Removed: $f"
+        done
+    else
+        log_info "Keeping geodata files"
+    fi
 }
 
 register_feature "geodat"

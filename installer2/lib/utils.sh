@@ -333,14 +333,27 @@ ensure_dir() {
     return 0
 }
 
+# --- Check if user wants to exit ---
+check_exit() {
+    case "$1" in
+    [eEqQ] | exit | EXIT | quit | QUIT)
+        echo ""
+        log_info "Aborted by user."
+        exit 0 ;;
+    esac
+}
+
 # --- Read user input (works even when stdin is piped) ---
+# Uses global _INPUT to avoid subshell issues with exit
+_INPUT=""
 read_input() {
     prompt="$1"
     default="$2"
     printf "${CYAN}%b${NC}" "$prompt" >&2
-    read answer </dev/tty 2>/dev/null || answer="$default"
-    [ -z "$answer" ] && answer="$default"
-    echo "$answer"
+    read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    check_exit "$_INPUT"
+    [ -z "$_INPUT" ] && _INPUT="$default"
+    return 0
 }
 
 # --- Yes/No prompt ---
@@ -349,14 +362,14 @@ confirm() {
     default="${2:-y}" # default yes
 
     if [ "$default" = "y" ]; then
-        hint="Y/n"
+        hint="Y/n/e"
     else
-        hint="y/N"
+        hint="y/N/e"
     fi
 
-    answer=$(read_input "${prompt} (${hint}): " "$default")
+    read_input "${prompt} (${hint}): " "$default"
 
-    case "$answer" in
+    case "$_INPUT" in
     [yY] | [yY][eE][sS]) return 0 ;;
     [nN] | [nN][oO]) return 1 ;;
     *) [ "$default" = "y" ] && return 0 || return 1 ;;

@@ -17,12 +17,15 @@ wizard_start() {
     echo ""
     printf "  ${BOLD}1${NC}) Automatic detection ${DIM}(recommended)${NC}\n"
     printf "  ${BOLD}2${NC}) Manual configuration\n"
+    printf "  ${BOLD}3${NC}) System info\n"
+    printf "  ${DIM}e) Exit${NC}\n"
     echo ""
 
-    choice=$(read_input "Select mode [1]: " "1")
+    read_input "Select mode [1]: " "1"
 
-    case "$choice" in
+    case "$_INPUT" in
     2) WIZARD_MODE="manual" ;;
+    3) action_sysinfo; exit 0 ;;
     *) WIZARD_MODE="auto" ;;
     esac
 }
@@ -75,10 +78,10 @@ wizard_manual_configure() {
     done
     echo ""
 
-    choice=$(read_input "Select platform [1]: " "1")
+    read_input "Select platform [1]: " "1"
     idx=1
     for p in $REGISTERED_PLATFORMS; do
-        if [ "$idx" = "$choice" ]; then
+        if [ "$idx" = "$_INPUT" ]; then
             B4_PLATFORM="$p"
             break
         fi
@@ -89,24 +92,29 @@ wizard_manual_configure() {
     platform_call info
 
     # 2. Binary directory
-    B4_BIN_DIR=$(read_input "Binary directory [${B4_BIN_DIR}]: " "$B4_BIN_DIR")
+    read_input "Binary directory [${B4_BIN_DIR}]: " "$B4_BIN_DIR"
+    B4_BIN_DIR="$_INPUT"
 
     # 3. Data/config directory
-    B4_DATA_DIR=$(read_input "Data directory [${B4_DATA_DIR}]: " "$B4_DATA_DIR")
+    read_input "Data directory [${B4_DATA_DIR}]: " "$B4_DATA_DIR"
+    B4_DATA_DIR="$_INPUT"
     B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
 
     # 4. Service type
     echo ""
     echo "  Service types: systemd, procd, sysv, entware, none"
-    B4_SERVICE_TYPE=$(read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE")
+    read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE"
+    B4_SERVICE_TYPE="$_INPUT"
 
     # 5. Architecture
     auto_arch=$(detect_architecture)
-    B4_ARCH=$(read_input "Architecture [${auto_arch}]: " "$auto_arch")
+    read_input "Architecture [${auto_arch}]: " "$auto_arch"
+    B4_ARCH="$_INPUT"
 
     # 6. Package manager
     detect_pkg_manager
-    B4_PKG_MANAGER=$(read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER")
+    read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER"
+    B4_PKG_MANAGER="$_INPUT"
 
     echo ""
     wizard_show_config

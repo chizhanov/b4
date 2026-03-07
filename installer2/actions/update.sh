@@ -98,9 +98,9 @@ action_update() {
     fi
 
     # Restart service if it was running
-    if [ -n "$B4_PLATFORM" ]; then
+    if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         log_info "Restarting service..."
-        platform_call start_service 2>/dev/null || true
+        service_call start 2>/dev/null || true
     fi
 
     echo ""

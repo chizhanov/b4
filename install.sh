@@ -405,14 +405,27 @@ ensure_dir() {
     return 0
 }
 
+# --- Check if user wants to exit ---
+check_exit() {
+    case "$1" in
+    [eEqQ] | exit | EXIT | quit | QUIT)
+        echo ""
+        log_info "Aborted by user."
+        exit 0 ;;
+    esac
+}
+
 # --- Read user input (works even when stdin is piped) ---
+# Uses global _INPUT to avoid subshell issues with exit
+_INPUT=""
 read_input() {
     prompt="$1"
     default="$2"
     printf "${CYAN}%b${NC}" "$prompt" >&2
-    read answer </dev/tty 2>/dev/null || answer="$default"
-    [ -z "$answer" ] && answer="$default"
-    echo "$answer"
+    read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    check_exit "$_INPUT"
+    [ -z "$_INPUT" ] && _INPUT="$default"
+    return 0
 }
 
 # --- Yes/No prompt ---
@@ -421,14 +434,14 @@ confirm() {
     default="${2:-y}" # default yes
 
     if [ "$default" = "y" ]; then
-        hint="Y/n"
+        hint="Y/n/e"
     else
-        hint="y/N"
+        hint="y/N/e"
     fi
 
-    answer=$(read_input "${prompt} (${hint}): " "$default")
+    read_input "${prompt} (${hint}): " "$default"
 
-    case "$answer" in
+    case "$_INPUT" in
     [yY] | [yY][eE][sS]) return 0 ;;
     [nN] | [nN][oO]) return 1 ;;
     *) [ "$default" = "y" ] && return 0 || return 1 ;;
@@ -455,12 +468,15 @@ wizard_start() {
     echo ""
     printf "  ${BOLD}1${NC}) Automatic detection ${DIM}(recommended)${NC}\n"
     printf "  ${BOLD}2${NC}) Manual configuration\n"
+    printf "  ${BOLD}3${NC}) System info\n"
+    printf "  ${DIM}e) Exit${NC}\n"
     echo ""
 
-    choice=$(read_input "Select mode [1]: " "1")
+    read_input "Select mode [1]: " "1"
 
-    case "$choice" in
+    case "$_INPUT" in
     2) WIZARD_MODE="manual" ;;
+    3) action_sysinfo; exit 0 ;;
     *) WIZARD_MODE="auto" ;;
     esac
 }
@@ -513,10 +529,10 @@ wizard_manual_configure() {
     done
     echo ""
 
-    choice=$(read_input "Select platform [1]: " "1")
+    read_input "Select platform [1]: " "1"
     idx=1
     for p in $REGISTERED_PLATFORMS; do
-        if [ "$idx" = "$choice" ]; then
+        if [ "$idx" = "$_INPUT" ]; then
             B4_PLATFORM="$p"
             break
         fi
@@ -527,24 +543,29 @@ wizard_manual_configure() {
     platform_call info
 
     # 2. Binary directory
-    B4_BIN_DIR=$(read_input "Binary directory [${B4_BIN_DIR}]: " "$B4_BIN_DIR")
+    read_input "Binary directory [${B4_BIN_DIR}]: " "$B4_BIN_DIR"
+    B4_BIN_DIR="$_INPUT"
 
     # 3. Data/config directory
-    B4_DATA_DIR=$(read_input "Data directory [${B4_DATA_DIR}]: " "$B4_DATA_DIR")
+    read_input "Data directory [${B4_DATA_DIR}]: " "$B4_DATA_DIR"
+    B4_DATA_DIR="$_INPUT"
     B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
 
     # 4. Service type
     echo ""
     echo "  Service types: systemd, procd, sysv, entware, none"
-    B4_SERVICE_TYPE=$(read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE")
+    read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE"
+    B4_SERVICE_TYPE="$_INPUT"
 
     # 5. Architecture
     auto_arch=$(detect_architecture)
-    B4_ARCH=$(read_input "Architecture [${auto_arch}]: " "$auto_arch")
+    read_input "Architecture [${auto_arch}]: " "$auto_arch"
+    B4_ARCH="$_INPUT"
 
     # 6. Package manager
     detect_pkg_manager
-    B4_PKG_MANAGER=$(read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER")
+    read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER"
+    B4_PKG_MANAGER="$_INPUT"
 
     echo ""
     wizard_show_config
@@ -618,10 +639,6 @@ wizard_select_features() {
 #   match            — Return 0 if this platform is detected, 1 otherwise
 #   info             — Set B4_BIN_DIR, B4_DATA_DIR, B4_SERVICE_TYPE, etc.
 #   check_deps       — Verify/install kernel modules and dependencies
-#   install_service  — Write the service/init script
-#   remove_service   — Remove the service/init script
-#   start_service    — Start the b4 service
-#   stop_service     — Stop the b4 service
 #   find_storage     — Find writable storage (for routers with limited rootfs)
 #
 # Then register with: register_platform "<id>"
@@ -717,7 +734,12 @@ platform_generic_linux_match() {
     # Don't match if this looks like a router firmware
     [ -f /etc/openwrt_release ] && return 1
     [ -f /etc/merlinwrt_release ] && return 1
-    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1  # Padavan
+    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1  # Merlin with Entware
+    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1   # Padavan
+    [ -d /var/run/ndm ] && return 1                      # Keenetic NDMS
+    command_exists ndmc && return 1                       # Keenetic NDMS
+    command_exists nvram && nvram get firmver 2>/dev/null | grep -qi "merlin" && return 1
+    [ -f /proc/device-tree/model ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null && return 1
 
     # Match systemd or standard init
     command_exists systemctl && return 0
@@ -805,128 +827,342 @@ _generic_linux_check_recommended() {
     fi
 }
 
-platform_generic_linux_install_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd) _generic_linux_install_systemd ;;
-    sysv)    _generic_linux_install_sysv ;;
-    none)    log_warn "No init system detected, skipping service setup" ;;
-    esac
-}
-
-_generic_linux_install_systemd() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
-[Unit]
-Description=B4 DPI Bypass Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}
-Restart=on-failure
-RestartSec=5
-TimeoutStopSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    systemctl daemon-reload
-    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
-    log_info "  systemctl start b4"
-    log_info "  systemctl enable b4  # auto-start on boot"
-}
-
-_generic_linux_install_sysv() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
-#!/bin/sh
-# B4 DPI Bypass Service
-PROG="${B4_BIN_DIR}/${BINARY_NAME}"
-CONFIG="${B4_CONFIG_FILE}"
-PIDFILE="/var/run/b4.pid"
-
-kernel_mod_load() {
-    modprobe xt_connbytes 2>/dev/null || true
-    modprobe xt_NFQUEUE 2>/dev/null || true
-    modprobe xt_multiport 2>/dev/null || true
-}
-
-start() {
-    echo "Starting b4..."
-    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
-    kernel_mod_load
-    nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
-    echo \$! >"\$PIDFILE"
-    sleep 1
-    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
-        echo "b4 started (PID: \$(cat \$PIDFILE))"
-    else
-        echo "b4 failed to start, check /var/log/b4.log"
-        rm -f "\$PIDFILE"
-        return 1
-    fi
-}
-
-stop() {
-    echo "Stopping b4..."
-    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
-    rm -f "\$PIDFILE"
-    echo "b4 stopped"
-}
-
-case "\$1" in
-    start)   start ;;
-    stop)    stop ;;
-    restart) stop; sleep 1; start ;;
-    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
-esac
-EOF
-
-    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-    log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-}
-
-platform_generic_linux_remove_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)
-        systemctl stop b4 2>/dev/null || true
-        systemctl disable b4 2>/dev/null || true
-        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-        systemctl daemon-reload
-        ;;
-    sysv)
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
-        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-        ;;
-    esac
-}
-
-platform_generic_linux_start_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)
-        systemctl restart b4 2>/dev/null && log_ok "Service started" && return 0
-        ;;
-    sysv)
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
-        ;;
-    esac
-    log_warn "Could not start service"
-    return 1
-}
-
-platform_generic_linux_stop_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)  systemctl stop b4 2>/dev/null ;;
-    sysv)     "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null ;;
-    esac
-}
-
 platform_generic_linux_find_storage() {
     # Standard Linux — no special storage detection needed
     return 0
 }
 
 register_platform "generic_linux"
+
+
+# ======== platforms/keenetic.sh ========
+# Platform: Keenetic routers (NDMS OS with Entware)
+#
+# Key characteristics:
+#   - NDMS is a proprietary Linux-based OS (not OpenWrt)
+#   - Root filesystem is read-only
+#   - Entware provides /opt (USB or internal storage on newer models)
+#   - Uses Entware init system (rc.func or standalone scripts)
+#   - opkg is the package manager (via Entware)
+#   - Older models: MIPS (MT7621 — mipsle_softfloat)
+#   - Newer models: aarch64
+#   - Kernel modules usually built into firmware
+#   - May not have /opt/etc/entware_release file
+
+platform_keenetic_name() {
+    echo "Keenetic (NDMS)"
+}
+
+platform_keenetic_match() {
+    # /proc/device-tree/model contains "keenetic"
+    if [ -f /proc/device-tree/model ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null; then
+        return 0
+    fi
+
+    # NDMS-specific: /var/run/ndm exists or ndmc command available
+    if [ -d /var/run/ndm ] || command_exists ndmc; then
+        return 0
+    fi
+
+    # Keenetic with Entware but no entware_release file
+    # /opt writable + read-only /etc + no /jffs (not Merlin) + no openwrt_release
+    if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ] && [ ! -w "/etc" ] &&
+       [ ! -d "/jffs" ] && [ ! -f /etc/openwrt_release ]; then
+        # Check if it looks like NDMS (has /tmp/ndm or similar)
+        [ -d /tmp/ndm ] && return 0
+    fi
+
+    return 1
+}
+
+platform_keenetic_info() {
+    B4_BIN_DIR="/opt/sbin"
+    B4_DATA_DIR="/opt/etc/b4"
+    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+    B4_SERVICE_TYPE="entware"
+    B4_SERVICE_DIR="/opt/etc/init.d"
+    B4_SERVICE_NAME="S99b4"
+    B4_PKG_MANAGER="opkg"
+
+    # Check if Entware is installed
+    if [ ! -d "/opt/etc/init.d" ] && [ ! -f "/opt/bin/opkg" ]; then
+        log_warn "Entware not detected!"
+        log_info "Entware is required on Keenetic. To install:"
+        log_info "  1. Go to router admin panel > System Settings"
+        log_info "  2. Enable OPKG package manager component"
+        log_info "  3. For older models: plug in a USB drive and install Entware"
+        log_info "  More info: https://help.keenetic.com/hc/en-us/articles/360021214160"
+
+        # Try /tmp as last resort (non-persistent)
+        if [ -d "/tmp" ] && [ -w "/tmp" ]; then
+            log_warn "Falling back to /tmp (non-persistent, will not survive reboot)"
+            B4_BIN_DIR="/tmp/b4"
+            B4_DATA_DIR="/tmp/b4"
+            B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+            B4_SERVICE_TYPE="none"
+        fi
+    fi
+}
+
+platform_keenetic_check_deps() {
+    # Check basic download tools
+    if ! command_exists curl && ! command_exists wget; then
+        log_warn "Neither curl nor wget found"
+        if command_exists opkg; then
+            log_info "Installing wget-ssl..."
+            pkg_install wget-ssl || true
+        fi
+    fi
+
+    command_exists tar || {
+        log_warn "tar not found"
+        command_exists opkg && pkg_install tar || true
+    }
+
+    ensure_https_support || exit 1
+
+    # Kernel modules — on Keenetic, usually built into NDMS firmware
+    _keenetic_load_kmods
+
+    # Recommended packages
+    _keenetic_check_recommended
+}
+
+_keenetic_load_kmods() {
+    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
+            modprobe "$mod" 2>/dev/null && continue
+            kver=$(uname -r)
+            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
+        fi
+    done
+
+    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not loaded — b4 may not work"
+        log_info "Check that your Keenetic firmware supports Netfilter Queue"
+        log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
+    fi
+}
+
+_keenetic_check_recommended() {
+    if ! command_exists opkg; then
+        log_warn "opkg not available — cannot install recommended packages"
+        return 0
+    fi
+
+    rec_missing=""
+    command_exists jq || rec_missing="${rec_missing} jq"
+    command_exists iptables || rec_missing="${rec_missing} iptables"
+    command_exists nohup || rec_missing="${rec_missing} coreutils-nohup"
+
+    # SSL support
+    if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
+        rec_missing="${rec_missing} ca-certificates"
+    fi
+    if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
+        if ! command_exists curl || ! curl -sI --max-time 3 "https://github.com" >/dev/null 2>&1; then
+            rec_missing="${rec_missing} wget-ssl"
+        fi
+    fi
+
+    if [ -n "$rec_missing" ]; then
+        log_warn "Recommended but missing:${rec_missing}"
+        if confirm "Install recommended packages?"; then
+            opkg update >/dev/null 2>&1 || true
+            for pkg in $rec_missing; do
+                log_info "Installing ${pkg}..."
+                opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+            done
+        fi
+    fi
+}
+
+platform_keenetic_find_storage() {
+    # Keenetic storage priority:
+    # 1. /opt (Entware — USB or internal on newer models)
+    # 2. /tmp — volatile, absolute last resort
+
+    if [ -d "/opt" ] && [ -w "/opt" ]; then
+        return 0
+    fi
+
+    log_err "No writable persistent storage found (/opt not available)"
+    log_info "Ensure Entware is installed:"
+    log_info "  - Newer models: Enable OPKG in system settings"
+    log_info "  - Older models: Plug in a USB drive and install Entware"
+    return 1
+}
+
+register_platform "keenetic"
+
+
+# ======== platforms/merlinwrt.sh ========
+# Platform: Asus Merlin (Asuswrt-Merlin firmware with Entware)
+#
+# Key characteristics:
+#   - Root filesystem is read-only (squashfs)
+#   - /jffs is a persistent writable JFFS2 partition
+#   - Entware provides /opt (usually on USB or /jffs)
+#   - Uses Entware's rc.func init system (not systemd, not procd)
+#   - opkg is the package manager (via Entware)
+#   - Kernel modules are usually built into firmware
+
+platform_merlinwrt_name() {
+    echo "Asus Merlin (Asuswrt-Merlin)"
+}
+
+platform_merlinwrt_match() {
+    # Check for Merlin-specific indicators
+
+    # nvram firmware version contains "merlin"
+    if command_exists nvram; then
+        fw=$(nvram get firmver 2>/dev/null)
+        bw=$(nvram get buildno 2>/dev/null)
+        if echo "$fw $bw" | grep -qi "merlin"; then
+            return 0
+        fi
+    fi
+
+    # /jffs exists and is writable (Merlin signature)
+    # plus Entware init structure
+    if [ -d "/jffs" ] && [ -w "/jffs" ] && [ -d "/opt/etc/init.d" ]; then
+        # Additional check: rc.func exists (Entware on Merlin)
+        [ -f "/opt/etc/init.d/rc.func" ] && return 0
+    fi
+
+    # /etc/merlinwrt_release (some builds)
+    [ -f "/etc/merlinwrt_release" ] && return 0
+
+    return 1
+}
+
+platform_merlinwrt_info() {
+    B4_BIN_DIR="/opt/sbin"
+    B4_DATA_DIR="/opt/etc/b4"
+    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+    B4_SERVICE_TYPE="entware"
+    B4_SERVICE_DIR="/opt/etc/init.d"
+    B4_SERVICE_NAME="S99b4"
+    B4_PKG_MANAGER="opkg"
+
+    # Check if Entware is actually installed
+    if [ ! -d "/opt/etc/init.d" ]; then
+        log_warn "Entware not detected!"
+        log_info "Entware is required for MerlinWRT. Install it first:"
+        log_info "  1. Plug in a USB drive"
+        log_info "  2. Format it via the router admin panel"
+        log_info "  3. Go to Administration > System > Enable Entware"
+        log_info "  Or visit: https://github.com/Entware/Entware/wiki/Install-on-Asuswrt-Merlin"
+
+        # Fallback to /jffs if available
+        if [ -d "/jffs" ] && [ -w "/jffs" ]; then
+            log_warn "Falling back to /jffs (limited space, Entware recommended)"
+            B4_BIN_DIR="/jffs/b4"
+            B4_DATA_DIR="/jffs/b4"
+            B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+            B4_SERVICE_TYPE="none"
+        fi
+    fi
+}
+
+platform_merlinwrt_check_deps() {
+    # Check basic download tools
+    if ! command_exists curl && ! command_exists wget; then
+        log_warn "Neither curl nor wget found"
+        if command_exists opkg; then
+            log_info "Installing wget-ssl..."
+            pkg_install wget-ssl || true
+        fi
+    fi
+
+    command_exists tar || {
+        log_warn "tar not found"
+        command_exists opkg && pkg_install tar || true
+    }
+
+    ensure_https_support || exit 1
+
+    # Kernel modules — on Merlin, most are built into firmware
+    # Just try to load them, don't panic if they fail
+    _merlinwrt_load_kmods
+
+    # Recommended packages via Entware opkg
+    _merlinwrt_check_recommended
+}
+
+_merlinwrt_load_kmods() {
+    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
+            # Try modprobe first
+            modprobe "$mod" 2>/dev/null && continue
+            # Fallback: find and insmod
+            kver=$(uname -r)
+            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
+        fi
+    done
+
+    # Verify NFQUEUE
+    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not loaded — b4 may not work"
+        log_info "This module should be built into Merlin firmware"
+        log_info "If not, check your firmware version supports NFQUEUE"
+    fi
+}
+
+_merlinwrt_check_recommended() {
+    if ! command_exists opkg; then
+        log_warn "opkg not available — cannot install recommended packages"
+        return 0
+    fi
+
+    rec_missing=""
+    command_exists jq || rec_missing="${rec_missing} jq"
+    command_exists iptables || rec_missing="${rec_missing} iptables"
+    command_exists nohup || rec_missing="${rec_missing} coreutils-nohup"
+
+    # Check SSL support packages
+    if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
+        rec_missing="${rec_missing} ca-certificates"
+    fi
+
+    if [ -n "$rec_missing" ]; then
+        log_warn "Recommended but missing:${rec_missing}"
+        if confirm "Install recommended packages?"; then
+            opkg update >/dev/null 2>&1 || true
+            for pkg in $rec_missing; do
+                log_info "Installing ${pkg}..."
+                opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+            done
+        fi
+    fi
+}
+
+platform_merlinwrt_find_storage() {
+    # Merlin storage priority:
+    # 1. /opt (Entware on USB) — preferred, most space
+    # 2. /jffs — persistent but limited (~60MB typically)
+    # 3. /tmp — volatile, last resort
+
+    if [ -d "/opt" ] && [ -w "/opt" ]; then
+        return 0
+    fi
+
+    if [ -d "/jffs" ] && [ -w "/jffs" ]; then
+        log_warn "Entware /opt not available, using /jffs (limited space)"
+        B4_BIN_DIR="/jffs/b4"
+        B4_DATA_DIR="/jffs/b4"
+        B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+        return 0
+    fi
+
+    log_err "No writable persistent storage found"
+    log_info "Please install Entware with a USB drive"
+    return 1
+}
+
+register_platform "merlinwrt"
 
 
 # ======== features/_interface.sh ========
@@ -975,7 +1211,7 @@ features_run() {
 # Remove all registered features
 features_remove() {
     for f in $REGISTERED_FEATURES; do
-        feature_dispatch "$f" remove 2>/dev/null || true
+        feature_dispatch "$f" remove || true
     done
 }
 
@@ -1013,9 +1249,9 @@ feature_geodat_run() {
     done
     echo ""
 
-    choice=$(read_input "Select source [2]: " "2")
+    read_input "Select source [2]: " "2"
 
-    base_url=$(echo "$GEODAT_SOURCES" | grep "^${choice}|" | cut -d'|' -f3)
+    base_url=$(echo "$GEODAT_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
     if [ -z "$base_url" ]; then
         log_warn "Invalid selection, using default"
         base_url=$(echo "$GEODAT_SOURCES" | grep "^2|" | cut -d'|' -f3)
@@ -1033,7 +1269,8 @@ feature_geodat_run() {
         fi
     fi
 
-    save_dir=$(read_input "Save directory [${save_dir}]: " "$save_dir")
+    read_input "Save directory [${save_dir}]: " "$save_dir"
+    save_dir="$_INPUT"
 
     ensure_dir "$save_dir" "Geodat directory" || return 1
 
@@ -1101,8 +1338,40 @@ _geodat_update_config() {
 }
 
 feature_geodat_remove() {
-    # Don't remove geodata files on uninstall — user may want them
-    return 0
+    # Read actual geodat paths from config (wherever user put them)
+    for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -f "$cfg" ] || continue
+        if command_exists jq; then
+            sitedat=$(jq -r '.system.geo.sitedat_path // empty' "$cfg" 2>/dev/null)
+            ipdat=$(jq -r '.system.geo.ipdat_path // empty' "$cfg" 2>/dev/null)
+            if [ -n "$sitedat" ] || [ -n "$ipdat" ]; then
+                _geodat_remove_files "$sitedat" "$ipdat"
+                return 0
+            fi
+        fi
+    done
+
+    # Fallback: check default locations
+    _geodat_remove_files "/etc/b4/geosite.dat" "/etc/b4/geoip.dat"
+    _geodat_remove_files "/opt/etc/b4/geosite.dat" "/opt/etc/b4/geoip.dat"
+}
+
+_geodat_remove_files() {
+    sitedat="$1"
+    ipdat="$2"
+    found=""
+    [ -n "$sitedat" ] && [ -f "$sitedat" ] && found="${found} ${sitedat}"
+    [ -n "$ipdat" ] && [ -f "$ipdat" ] && found="${found} ${ipdat}"
+    [ -z "$found" ] && return 0
+
+    log_info "Found geodata files:${found}"
+    if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove geodata files?" "y"; then
+        for f in $found; do
+            rm -f "$f" && log_info "Removed: $f"
+        done
+    else
+        log_info "Keeping geodata files"
+    fi
 }
 
 register_feature "geodat"
@@ -1197,6 +1466,342 @@ feature_https_remove() {
 }
 
 register_feature "https"
+
+
+# ======== services/_interface.sh ========
+# Service registration and dispatch system
+#
+# Each service file must define these functions (prefixed with service_<type>_):
+#   install   — Write the service/init script to disk
+#   remove    — Stop and delete the service/init script
+#   start     — Start the b4 service
+#   stop      — Stop the b4 service
+#
+# Then register with: register_service "<type>"
+#
+# Required globals when service functions are called:
+#   B4_SERVICE_TYPE, B4_SERVICE_DIR, B4_SERVICE_NAME
+#   B4_BIN_DIR, B4_DATA_DIR, B4_CONFIG_FILE, BINARY_NAME
+
+REGISTERED_SERVICES=""
+
+register_service() {
+    id="$1"
+    REGISTERED_SERVICES="${REGISTERED_SERVICES} ${id}"
+}
+
+# Dispatch to the active service type
+# Usage: service_call <function> [args...]
+service_call() {
+    func="$1"
+    shift
+    service_dispatch "$B4_SERVICE_TYPE" "$func" "$@"
+}
+
+# Dispatch to a specific service type
+# Usage: service_dispatch <type> <function> [args...]
+service_dispatch() {
+    sid="$1"
+    func="$2"
+    shift 2
+    fn="service_${sid}_${func}"
+    if type "$fn" >/dev/null 2>&1; then
+        "$fn" "$@"
+    else
+        log_warn "Service type '${sid}' does not implement '${func}'"
+        return 1
+    fi
+}
+
+
+# ======== services/entware.sh ========
+# Service type: entware
+# Manages b4 using Entware's init.d system (rc.func or standalone)
+# Used by Keenetic (NDMS) and Asus Merlin (Asuswrt-Merlin)
+
+service_entware_install() {
+    ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
+
+    # Remove stale service file
+    rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" 2>/dev/null || true
+
+    if [ -f "${B4_SERVICE_DIR}/rc.func" ]; then
+        _service_entware_install_rcfunc
+    else
+        _service_entware_install_standalone
+    fi
+
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} start"
+    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} stop"
+}
+
+_service_entware_install_rcfunc() {
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+#!/bin/sh
+# B4 DPI Bypass Service — Entware
+
+ENABLED=yes
+PROCS=b4
+ARGS="--config=${B4_CONFIG_FILE}"
+PREARGS="nohup"
+DESC="\$PROCS"
+PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+kernel_mod_load() {
+    KERNEL=\$(uname -r)
+    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+        mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
+        modprobe "\$mod" >/dev/null 2>&1 || true
+    done
+}
+
+[ "\$1" = "start" ] || [ "\$1" = "restart" ] && kernel_mod_load
+
+. /opt/etc/init.d/rc.func
+EOF
+}
+
+_service_entware_install_standalone() {
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+#!/bin/sh
+# B4 DPI Bypass Service — Entware standalone
+PROG="${B4_BIN_DIR}/${BINARY_NAME}"
+CONFIG="${B4_CONFIG_FILE}"
+PIDFILE="/opt/var/run/b4.pid"
+PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+kernel_mod_load() {
+    KERNEL=\$(uname -r)
+    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+        mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
+        modprobe "\$mod" >/dev/null 2>&1 || true
+    done
+}
+
+start() {
+    echo "Starting b4..."
+    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
+    kernel_mod_load
+    nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    echo \$! >"\$PIDFILE"
+    sleep 1
+    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
+        echo "b4 started (PID: \$(cat \$PIDFILE))"
+    else
+        echo "b4 failed to start, check /opt/var/log/b4.log"
+        rm -f "\$PIDFILE"
+        return 1
+    fi
+}
+
+stop() {
+    echo "Stopping b4..."
+    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
+    rm -f "\$PIDFILE"
+    killall b4 2>/dev/null || true
+    echo "b4 stopped"
+}
+
+case "\$1" in
+    start)   start ;;
+    stop)    stop ;;
+    restart) stop; sleep 1; start ;;
+    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
+esac
+EOF
+}
+
+service_entware_remove() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+        log_info "Removed service: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    fi
+}
+
+service_entware_start() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+    fi
+    log_warn "Could not start service"
+    return 1
+}
+
+service_entware_stop() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+    fi
+}
+
+register_service "entware"
+
+
+# ======== services/none.sh ========
+# Service type: none
+# No-op service management — used when no init system is available
+
+service_none_install() {
+    log_warn "No init system configured — b4 will not start automatically"
+    log_info "Start manually: ${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}"
+}
+
+service_none_remove() {
+    return 0
+}
+
+service_none_start() {
+    log_warn "No service configured — start b4 manually"
+    return 1
+}
+
+service_none_stop() {
+    return 0
+}
+
+register_service "none"
+
+
+# ======== services/systemd.sh ========
+# Service type: systemd
+# Manages b4 as a systemd unit on standard Linux systems
+
+service_systemd_install() {
+    ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
+
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+[Unit]
+Description=B4 DPI Bypass Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
+    log_info "  systemctl start b4"
+    log_info "  systemctl enable b4  # auto-start on boot"
+}
+
+service_systemd_remove() {
+    systemctl stop b4 2>/dev/null || true
+    systemctl disable b4 2>/dev/null || true
+    rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    systemctl daemon-reload
+    log_info "Removed systemd service: ${B4_SERVICE_NAME}"
+}
+
+service_systemd_start() {
+    if systemctl restart b4 2>/dev/null; then
+        log_ok "Service started"
+        return 0
+    fi
+    log_warn "Could not start service"
+    return 1
+}
+
+service_systemd_stop() {
+    systemctl stop b4 2>/dev/null || true
+}
+
+register_service "systemd"
+
+
+# ======== services/sysv.sh ========
+# Service type: sysv
+# Manages b4 using a traditional SysV init.d script
+
+service_sysv_install() {
+    ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
+
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+#!/bin/sh
+# B4 DPI Bypass Service
+PROG="${B4_BIN_DIR}/${BINARY_NAME}"
+CONFIG="${B4_CONFIG_FILE}"
+PIDFILE="/var/run/b4.pid"
+
+kernel_mod_load() {
+    KERNEL=\$(uname -r)
+    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+        mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
+        modprobe "\$mod" >/dev/null 2>&1 || true
+    done
+}
+
+start() {
+    echo "Starting b4..."
+    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
+    kernel_mod_load
+    nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+    echo \$! >"\$PIDFILE"
+    sleep 1
+    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
+        echo "b4 started (PID: \$(cat \$PIDFILE))"
+    else
+        echo "b4 failed to start, check /var/log/b4.log"
+        rm -f "\$PIDFILE"
+        return 1
+    fi
+}
+
+stop() {
+    echo "Stopping b4..."
+    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
+    rm -f "\$PIDFILE"
+    echo "b4 stopped"
+}
+
+case "\$1" in
+    start)   start ;;
+    stop)    stop ;;
+    restart) stop; sleep 1; start ;;
+    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
+esac
+EOF
+
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} start"
+    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} stop"
+}
+
+service_sysv_remove() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+        log_info "Removed init script: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    fi
+}
+
+service_sysv_start() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+    fi
+    log_warn "Could not start service"
+    return 1
+}
+
+service_sysv_stop() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+    fi
+}
+
+register_service "sysv"
 
 
 # ======== actions/install.sh ========
@@ -1314,7 +1919,7 @@ action_install() {
 
     # --- Install service ---
     log_info "Setting up service..."
-    platform_call install_service
+    service_call install
 
     # --- Run enabled features ---
     if [ -n "$ENABLED_FEATURES" ]; then
@@ -1353,7 +1958,7 @@ _install_summary() {
     # Offer to start service
     if [ "$QUIET_MODE" -eq 0 ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         if confirm "Start B4 service now?"; then
-            platform_call start_service || true
+            service_call start || true
         fi
     fi
 
@@ -1402,13 +2007,16 @@ action_remove() {
         fi
     fi
 
+    # Find config file — check all known locations
+    _remove_find_config
+
     # Stop running process
     stop_b4
 
     # Remove service
-    if [ -n "$B4_PLATFORM" ]; then
+    if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         log_info "Removing service..."
-        platform_call remove_service 2>/dev/null || true
+        service_call remove 2>/dev/null || true
     else
         # Manual cleanup of known service locations
         for svc in \
@@ -1423,7 +2031,7 @@ action_remove() {
         command_exists systemctl && systemctl daemon-reload 2>/dev/null || true
     fi
 
-    # Remove features
+    # Remove features (geodat etc. — reads paths from config)
     features_remove
 
     # Remove binary from known locations
@@ -1435,17 +2043,8 @@ action_remove() {
         fi
     done
 
-    # Ask about config
-    for cfg in /etc/b4 /opt/etc/b4; do
-        if [ -d "$cfg" ]; then
-            if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove config directory ${cfg}?" "n"; then
-                rm -rf "$cfg"
-                log_info "Removed: ${cfg}"
-            else
-                log_info "Keeping: ${cfg}"
-            fi
-        fi
-    done
+    # Ask about config directories
+    _remove_config_dirs
 
     # Cleanup
     rm -f /var/run/b4.pid 2>/dev/null || true
@@ -1454,6 +2053,56 @@ action_remove() {
     echo ""
     log_ok "B4 has been removed"
     echo ""
+}
+
+# Find the active config file so features can read paths from it
+_remove_find_config() {
+    # Already set by platform detection or user override
+    if [ -n "$B4_CONFIG_FILE" ] && [ -f "$B4_CONFIG_FILE" ]; then
+        log_info "Using config: $B4_CONFIG_FILE"
+        return 0
+    fi
+
+    # Search known locations
+    for cfg in /etc/b4/b4.json /opt/etc/b4/b4.json /etc/storage/b4/b4.json; do
+        if [ -f "$cfg" ]; then
+            B4_CONFIG_FILE="$cfg"
+            B4_DATA_DIR=$(dirname "$cfg")
+            log_info "Found config: $B4_CONFIG_FILE"
+            return 0
+        fi
+    done
+
+    log_warn "No config file found"
+}
+
+# Remove config directories, but list what's inside first
+_remove_config_dirs() {
+    # Collect unique config dirs to check
+    checked=""
+    for cfg_dir in "$B4_DATA_DIR" /etc/b4 /opt/etc/b4 /etc/storage/b4; do
+        [ -z "$cfg_dir" ] && continue
+        [ -d "$cfg_dir" ] || continue
+        # Skip if already checked
+        echo "$checked" | grep -q "$cfg_dir" && continue
+        checked="${checked} ${cfg_dir}"
+
+        # Show remaining contents
+        remaining=$(ls -1 "$cfg_dir" 2>/dev/null)
+        if [ -n "$remaining" ]; then
+            log_info "Remaining files in ${cfg_dir}:"
+            echo "$remaining" | while read -r f; do
+                printf "    %s\n" "$f" >&2
+            done
+        fi
+
+        if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove config directory ${cfg_dir}?" "n"; then
+            rm -rf "$cfg_dir"
+            log_info "Removed: ${cfg_dir}"
+        else
+            log_info "Keeping: ${cfg_dir}"
+        fi
+    done
 }
 
 
@@ -1557,9 +2206,9 @@ action_update() {
     fi
 
     # Restart service if it was running
-    if [ -n "$B4_PLATFORM" ]; then
+    if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         log_info "Restarting service..."
-        platform_call start_service 2>/dev/null || true
+        service_call start 2>/dev/null || true
     fi
 
     echo ""
@@ -1624,16 +2273,34 @@ action_sysinfo() {
     log_info "Kernel modules:"
     for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
         if lsmod 2>/dev/null | grep -q "^${mod}"; then
-            printf "    ${GREEN}loaded${NC}  %s\n" "$mod" >&2
+            printf "    ${GREEN}loaded${NC}   %s\n" "$mod" >&2
+        elif _kmod_builtin "$mod"; then
+            printf "    ${GREEN}built-in${NC} %s\n" "$mod" >&2
         else
-            printf "    ${RED}missing${NC} %s\n" "$mod" >&2
+            printf "    ${YELLOW}missing${NC}  %s ${DIM}(may be built-in)${NC}\n" "$mod" >&2
         fi
     done
+
+    # Functional test — does NFQUEUE actually work?
+    if command_exists iptables; then
+        if iptables -t mangle -C B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
+            iptables -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
+        fi
+        if iptables -t mangle -N B4_TEST 2>/dev/null; then
+            if iptables -t mangle -A B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
+                printf "    ${GREEN}  OK${NC}    %s\n" "NFQUEUE works (functional test passed)" >&2
+                iptables -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
+            else
+                printf "    ${RED}  FAIL${NC}  %s\n" "NFQUEUE not functional" >&2
+            fi
+            iptables -t mangle -X B4_TEST 2>/dev/null || true
+        fi
+    fi
 
     # Network tools
     echo ""
     log_info "Network tools:"
-    for tool in iptables nft curl wget jq tar sha256sum; do
+    for tool in iptables nft jq tar sha256sum; do
         if command_exists "$tool"; then
             printf "    ${GREEN}found${NC}   %s\n" "$tool" >&2
         else
@@ -1641,17 +2308,32 @@ action_sysinfo() {
         fi
     done
 
+    # curl/wget with HTTPS check
+    if command_exists curl; then
+        if curl -sI --max-time 5 "https://github.com" >/dev/null 2>&1; then
+            printf "    ${GREEN}found${NC}   curl ${GREEN}(HTTPS OK)${NC}\n" >&2
+        else
+            printf "    ${YELLOW}found${NC}   curl ${RED}(HTTPS failed)${NC}\n" >&2
+        fi
+    else
+        printf "    ${YELLOW}missing${NC} curl\n" >&2
+    fi
+    if command_exists wget; then
+        if wget --spider -q --timeout=5 "https://github.com" 2>/dev/null; then
+            printf "    ${GREEN}found${NC}   wget ${GREEN}(HTTPS OK)${NC}\n" >&2
+        elif wget --spider -q --timeout=5 --no-check-certificate "https://github.com" 2>/dev/null; then
+            printf "    ${YELLOW}found${NC}   wget ${YELLOW}(HTTPS only with --no-check-certificate)${NC}\n" >&2
+        else
+            printf "    ${YELLOW}found${NC}   wget ${RED}(HTTPS failed)${NC}\n" >&2
+        fi
+    else
+        printf "    ${YELLOW}missing${NC} wget\n" >&2
+    fi
+
     # Package manager
     echo ""
     detect_pkg_manager
     log_detail "Package manager" "${B4_PKG_MANAGER:-none}"
-
-    # HTTPS support
-    if check_https_support 2>/dev/null; then
-        log_detail "HTTPS support" "${GREEN}yes${NC}"
-    else
-        log_detail "HTTPS support" "${RED}no${NC}"
-    fi
 
     # Storage
     echo ""
@@ -1667,6 +2349,19 @@ action_sysinfo() {
 
     echo ""
     log_sep
+}
+
+# Check if a kernel module is built-in (not loadable but compiled into kernel)
+_kmod_builtin() {
+    mod="$1"
+    kver=$(uname -r)
+    # Check modules.builtin file (lists built-in modules)
+    for f in "/lib/modules/${kver}/modules.builtin" "/lib/modules/${kver}/modules.builtin.modinfo"; do
+        [ -f "$f" ] && grep -q "${mod}" "$f" 2>/dev/null && return 0
+    done
+    # Check /sys/module — exists for both loaded and built-in modules
+    [ -d "/sys/module/${mod}" ] && return 0
+    return 1
 }
 
 

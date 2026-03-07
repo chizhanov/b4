@@ -113,7 +113,7 @@ action_install() {
 
     # --- Install service ---
     log_info "Setting up service..."
-    platform_call install_service
+    service_call install
 
     # --- Run enabled features ---
     if [ -n "$ENABLED_FEATURES" ]; then
@@ -152,7 +152,7 @@ _install_summary() {
     # Offer to start service
     if [ "$QUIET_MODE" -eq 0 ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         if confirm "Start B4 service now?"; then
-            platform_call start_service || true
+            service_call start || true
         fi
     fi
 

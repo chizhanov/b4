@@ -14,7 +14,12 @@ platform_generic_linux_match() {
     # Don't match if this looks like a router firmware
     [ -f /etc/openwrt_release ] && return 1
     [ -f /etc/merlinwrt_release ] && return 1
-    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1  # Padavan
+    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1  # Merlin with Entware
+    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1   # Padavan
+    [ -d /var/run/ndm ] && return 1                      # Keenetic NDMS
+    command_exists ndmc && return 1                       # Keenetic NDMS
+    command_exists nvram && nvram get firmver 2>/dev/null | grep -qi "merlin" && return 1
+    [ -f /proc/device-tree/model ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null && return 1
 
     # Match systemd or standard init
     command_exists systemctl && return 0
@@ -100,122 +105,6 @@ _generic_linux_check_recommended() {
             pkg_install $rec_missing || true
         fi
     fi
-}
-
-platform_generic_linux_install_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd) _generic_linux_install_systemd ;;
-    sysv)    _generic_linux_install_sysv ;;
-    none)    log_warn "No init system detected, skipping service setup" ;;
-    esac
-}
-
-_generic_linux_install_systemd() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
-[Unit]
-Description=B4 DPI Bypass Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}
-Restart=on-failure
-RestartSec=5
-TimeoutStopSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    systemctl daemon-reload
-    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
-    log_info "  systemctl start b4"
-    log_info "  systemctl enable b4  # auto-start on boot"
-}
-
-_generic_linux_install_sysv() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
-#!/bin/sh
-# B4 DPI Bypass Service
-PROG="${B4_BIN_DIR}/${BINARY_NAME}"
-CONFIG="${B4_CONFIG_FILE}"
-PIDFILE="/var/run/b4.pid"
-
-kernel_mod_load() {
-    modprobe xt_connbytes 2>/dev/null || true
-    modprobe xt_NFQUEUE 2>/dev/null || true
-    modprobe xt_multiport 2>/dev/null || true
-}
-
-start() {
-    echo "Starting b4..."
-    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
-    kernel_mod_load
-    nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
-    echo \$! >"\$PIDFILE"
-    sleep 1
-    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
-        echo "b4 started (PID: \$(cat \$PIDFILE))"
-    else
-        echo "b4 failed to start, check /var/log/b4.log"
-        rm -f "\$PIDFILE"
-        return 1
-    fi
-}
-
-stop() {
-    echo "Stopping b4..."
-    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
-    rm -f "\$PIDFILE"
-    echo "b4 stopped"
-}
-
-case "\$1" in
-    start)   start ;;
-    stop)    stop ;;
-    restart) stop; sleep 1; start ;;
-    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
-esac
-EOF
-
-    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-    log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-}
-
-platform_generic_linux_remove_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)
-        systemctl stop b4 2>/dev/null || true
-        systemctl disable b4 2>/dev/null || true
-        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-        systemctl daemon-reload
-        ;;
-    sysv)
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
-        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-        ;;
-    esac
-}
-
-platform_generic_linux_start_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)
-        systemctl restart b4 2>/dev/null && log_ok "Service started" && return 0
-        ;;
-    sysv)
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
-        ;;
-    esac
-    log_warn "Could not start service"
-    return 1
-}
-
-platform_generic_linux_stop_service() {
-    case "$B4_SERVICE_TYPE" in
-    systemd)  systemctl stop b4 2>/dev/null ;;
-    sysv)     "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null ;;
-    esac
 }
 
 platform_generic_linux_find_storage() {

@@ -61,13 +61,22 @@ for f in "${SCRIPT_DIR}"/features/*.sh; do
     append "$f"
 done
 
-# 5. Actions (fixed order)
+# 5. Service system: interface, then auto-discover service files
+append "${SCRIPT_DIR}/services/_interface.sh"
+for f in "${SCRIPT_DIR}"/services/*.sh; do
+    case "$(basename "$f")" in
+    _*) continue ;; # skip _interface.sh
+    esac
+    append "$f"
+done
+
+# 6. Actions (fixed order)
 for action in install remove update sysinfo; do
     file="${SCRIPT_DIR}/actions/${action}.sh"
     [ -f "$file" ] && append "$file"
 done
 
-# 6. Main entry point
+# 7. Main entry point
 append "${SCRIPT_DIR}/main.sh"
 
 chmod +x "$OUTPUT"

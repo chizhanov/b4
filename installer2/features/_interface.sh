@@ -44,6 +44,6 @@ features_run() {
 # Remove all registered features
 features_remove() {
     for f in $REGISTERED_FEATURES; do
-        feature_dispatch "$f" remove 2>/dev/null || true
+        feature_dispatch "$f" remove || true
     done
 }

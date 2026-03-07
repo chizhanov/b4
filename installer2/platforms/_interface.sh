@@ -6,10 +6,6 @@
 #   match            — Return 0 if this platform is detected, 1 otherwise
 #   info             — Set B4_BIN_DIR, B4_DATA_DIR, B4_SERVICE_TYPE, etc.
 #   check_deps       — Verify/install kernel modules and dependencies
-#   install_service  — Write the service/init script
-#   remove_service   — Remove the service/init script
-#   start_service    — Start the b4 service
-#   stop_service     — Stop the b4 service
 #   find_storage     — Find writable storage (for routers with limited rootfs)
 #
 # Then register with: register_platform "<id>"
