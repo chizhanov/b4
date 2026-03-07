@@ -52,10 +52,10 @@ action_sysinfo() {
     for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
         [ -z "$dir" ] && continue
         if [ -f "${dir}/${BINARY_NAME}" ] && [ -x "${dir}/${BINARY_NAME}" ]; then
-            # Verify it's actually our b4 (not another tool with the same name)
-            _ver_out=$("${dir}/${BINARY_NAME}" --version 2>&1 | head -1) || _ver_out=""
-            if echo "$_ver_out" | grep -qi "b4\|bypass\|dpi"; then
+            _ver_full=$("${dir}/${BINARY_NAME}" --version 2>&1) || _ver_full=""
+            if echo "$_ver_full" | grep -qi "b4 version\|bypass\|dpi"; then
                 found_bin="${dir}/${BINARY_NAME}"
+                _ver_out=$(echo "$_ver_full" | grep -i "version" | head -1)
                 break
             fi
         fi
@@ -111,7 +111,7 @@ action_sysinfo() {
                     running_secs=$((sys_uptime - proc_secs))
                     if [ "$running_secs" -ge 3600 ] 2>/dev/null; then
                         hours=$((running_secs / 3600))
-                        mins=$(( (running_secs % 3600) / 60 ))
+                        mins=$(((running_secs % 3600) / 60))
                         log_detail "Uptime" "${hours}h ${mins}m"
                     elif [ "$running_secs" -ge 60 ] 2>/dev/null; then
                         mins=$((running_secs / 60))
