@@ -57,7 +57,7 @@ func (w *Worker) Start() error {
 		defer w.wg.Done()
 		_ = q.RegisterWithErrorFunc(w.ctx, func(a nfqueue.Attribute) int {
 			cfg := w.getConfig()
-			set := cfg.MainSet
+			var set *config.SetConfig
 
 			matcher := w.getMatcher()
 			id := *a.PacketID

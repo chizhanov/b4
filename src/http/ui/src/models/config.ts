@@ -132,6 +132,8 @@ export interface QueueConfig {
   mark: number;
   ipv4: boolean;
   ipv6: boolean;
+  tcp_conn_bytes_limit: number;
+  udp_conn_bytes_limit: number;
   interfaces: string[];
   devices: DevicesConfig;
   mss_clamp: MSSClampConfig;
@@ -301,5 +303,4 @@ export interface MSSClampConfig {
   size: number;
 }
 
-export const MAIN_SET_ID = "11111111-1111-1111-1111-111111111111";
 export const NEW_SET_ID = "00000000-0000-0000-0000-000000000000";

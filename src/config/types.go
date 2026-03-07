@@ -26,14 +26,16 @@ type ApiConfig struct {
 }
 
 type QueueConfig struct {
-	StartNum    int            `json:"start_num" bson:"start_num"`
-	Threads     int            `json:"threads" bson:"threads"`
-	Mark        uint           `json:"mark" bson:"mark"`
-	IPv4Enabled bool           `json:"ipv4" bson:"ipv4"`
-	IPv6Enabled bool           `json:"ipv6" bson:"ipv6"`
-	Interfaces  []string       `json:"interfaces" bson:"interfaces"`
-	Devices     DevicesConfig  `json:"devices" bson:"devices"`
-	MSSClamp    MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
+	StartNum          int            `json:"start_num" bson:"start_num"`
+	Threads           int            `json:"threads" bson:"threads"`
+	Mark              uint           `json:"mark" bson:"mark"`
+	IPv4Enabled       bool           `json:"ipv4" bson:"ipv4"`
+	IPv6Enabled       bool           `json:"ipv6" bson:"ipv6"`
+	TCPConnBytesLimit int            `json:"tcp_conn_bytes_limit" bson:"tcp_conn_bytes_limit"`
+	UDPConnBytesLimit int            `json:"udp_conn_bytes_limit" bson:"udp_conn_bytes_limit"`
+	Interfaces        []string       `json:"interfaces" bson:"interfaces"`
+	Devices           DevicesConfig  `json:"devices" bson:"devices"`
+	MSSClamp          MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
 }
 
 type DevicesConfig struct {

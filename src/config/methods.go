@@ -116,20 +116,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	c.MainSet = nil
-	for _, set := range c.Sets {
-		if set.Id == MAIN_SET_ID {
-			c.MainSet = set
-			break
-		}
-	}
-
-	if c.MainSet == nil {
-		defaultCopy := NewSetConfig()
-		c.MainSet = &defaultCopy
-		c.Sets = append(c.Sets, c.MainSet)
-	}
-
 	for _, set := range c.Sets {
 
 		if len(set.Fragmentation.SeqOverlapPattern) > 0 {
@@ -153,24 +139,20 @@ func (c *Config) Validate() error {
 			}
 		}
 
-		if set.Id == MAIN_SET_ID {
-			continue
+		if set.TCP.ConnBytesLimit > c.Queue.TCPConnBytesLimit {
+			set.TCP.ConnBytesLimit = c.Queue.TCPConnBytesLimit
 		}
-		if set.TCP.ConnBytesLimit > c.MainSet.TCP.ConnBytesLimit {
-			set.TCP.ConnBytesLimit = c.MainSet.TCP.ConnBytesLimit
-		}
-		if set.UDP.ConnBytesLimit > c.MainSet.UDP.ConnBytesLimit {
-			set.UDP.ConnBytesLimit = c.MainSet.UDP.ConnBytesLimit
+		if set.UDP.ConnBytesLimit > c.Queue.UDPConnBytesLimit {
+			set.UDP.ConnBytesLimit = c.Queue.UDPConnBytesLimit
 		}
 
-	}
+		if len(set.Targets.GeoSiteCategories) > 0 && c.System.Geo.GeoSitePath == "" {
+			return fmt.Errorf("--geosite must be specified when using --geo-categories")
+		}
 
-	if len(c.MainSet.Targets.GeoSiteCategories) > 0 && c.System.Geo.GeoSitePath == "" {
-		return fmt.Errorf("--geosite must be specified when using --geo-categories")
-	}
-
-	if len(c.MainSet.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
-		return fmt.Errorf("--geoip must be specified when using --geoip-categories")
+		if len(set.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
+			return fmt.Errorf("--geoip must be specified when using --geoip-categories")
+		}
 	}
 
 	// Validate global MSS clamp
@@ -203,21 +185,13 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("queue-num must be between 0 and 65535")
 	}
 
-	if len(c.Sets) >= 1 {
-		for _, set := range c.Sets {
-			if set.Id == "" {
-				return fmt.Errorf("each set must have a unique non-empty ID")
-			}
-
-			if set.Id == MAIN_SET_ID {
-				set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
-				set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
-				continue
-			}
-
-			set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
-			set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
+	for _, set := range c.Sets {
+		if set.Id == "" {
+			return fmt.Errorf("each set must have a unique non-empty ID")
 		}
+
+		set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
+		set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
 	}
 
 	c.LoadCapturePayloads()

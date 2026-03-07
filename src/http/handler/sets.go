@@ -210,11 +210,6 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (api *API) deleteSet(w http.ResponseWriter, id string) {
-	if id == config.MAIN_SET_ID {
-		http.Error(w, "Cannot delete main set", http.StatusForbidden)
-		return
-	}
-
 	oldConfig := api.cfg
 
 	found := false
