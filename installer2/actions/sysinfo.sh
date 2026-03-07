@@ -255,16 +255,3 @@ _sysinfo_show_storage() {
     [ ! -w "$_dir" ] && writable="ro"
     printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
 }
-
-# Check if a kernel module is built-in (not loadable but compiled into kernel)
-_kmod_builtin() {
-    mod="$1"
-    kver=$(uname -r)
-    # Check modules.builtin file (lists built-in modules)
-    for f in "/lib/modules/${kver}/modules.builtin" "/lib/modules/${kver}/modules.builtin.modinfo"; do
-        [ -f "$f" ] && grep -q "${mod}" "$f" 2>/dev/null && return 0
-    done
-    # Check /sys/module — exists for both loaded and built-in modules
-    [ -d "/sys/module/${mod}" ] && return 0
-    return 1
-}

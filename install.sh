@@ -360,6 +360,25 @@ verify_checksum() {
     fi
 }
 
+# --- Kernel module helpers ---
+# Check if a kernel module is built-in (compiled into kernel, not loadable)
+_kmod_builtin() {
+    _mod="$1"
+    _kver=$(uname -r)
+    for _f in "/lib/modules/${_kver}/modules.builtin" "/lib/modules/${_kver}/modules.builtin.modinfo"; do
+        [ -f "$_f" ] && grep -q "${_mod}" "$_f" 2>/dev/null && return 0
+    done
+    [ -d "/sys/module/${_mod}" ] && return 0
+    return 1
+}
+
+# Check if a kernel module is available (loaded OR built-in)
+_kmod_available() {
+    lsmod 2>/dev/null | grep -q "^$1" && return 0
+    _kmod_builtin "$1" && return 0
+    return 1
+}
+
 # --- Process management ---
 is_b4_running() {
     # Check PID files first (most reliable)
@@ -834,14 +853,12 @@ platform_generic_linux_check_deps() {
 
 _generic_linux_check_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
-        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
-            modprobe "$mod" 2>/dev/null || true
-        fi
+        _kmod_available "$mod" && continue
+        modprobe "$mod" 2>/dev/null || true
     done
 
-    # Verify at least NFQUEUE is available
-    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE kernel module not loaded"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE kernel module not available"
         case "$B4_PKG_MANAGER" in
         apt) log_info "Try: apt install xtables-addons-common" ;;
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;
@@ -966,16 +983,15 @@ platform_keenetic_check_deps() {
 
 _keenetic_load_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
-        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
-            modprobe "$mod" 2>/dev/null && continue
-            kver=$(uname -r)
-            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
-            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
-        fi
+        _kmod_available "$mod" && continue
+        modprobe "$mod" 2>/dev/null && continue
+        kver=$(uname -r)
+        mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not loaded — b4 may not work"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not available — b4 may not work"
         log_info "Check that your Keenetic firmware supports Netfilter Queue"
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
     fi
@@ -1129,21 +1145,16 @@ platform_merlinwrt_check_deps() {
 
 _merlinwrt_load_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
-        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
-            # Try modprobe first
-            modprobe "$mod" 2>/dev/null && continue
-            # Fallback: find and insmod
-            kver=$(uname -r)
-            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
-            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
-        fi
+        _kmod_available "$mod" && continue
+        modprobe "$mod" 2>/dev/null && continue
+        kver=$(uname -r)
+        mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    # Verify NFQUEUE
-    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not loaded — b4 may not work"
-        log_info "This module should be built into Merlin firmware"
-        log_info "If not, check your firmware version supports NFQUEUE"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not available — b4 may not work"
+        log_info "Check your firmware version supports NFQUEUE"
     fi
 }
 
@@ -1305,17 +1316,15 @@ platform_openwrt_check_deps() {
 
 _openwrt_load_kmods() {
     for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
-        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
-            modprobe "$mod" 2>/dev/null && continue
-            # Fallback: try insmod
-            kver=$(uname -r)
-            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
-            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
-        fi
+        _kmod_available "$mod" && continue
+        modprobe "$mod" 2>/dev/null && continue
+        kver=$(uname -r)
+        mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not loaded — b4 may not work"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not available — b4 may not work"
         log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
     fi
 }
@@ -2837,19 +2846,6 @@ _sysinfo_show_storage() {
     writable="rw"
     [ ! -w "$_dir" ] && writable="ro"
     printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
-}
-
-# Check if a kernel module is built-in (not loadable but compiled into kernel)
-_kmod_builtin() {
-    mod="$1"
-    kver=$(uname -r)
-    # Check modules.builtin file (lists built-in modules)
-    for f in "/lib/modules/${kver}/modules.builtin" "/lib/modules/${kver}/modules.builtin.modinfo"; do
-        [ -f "$f" ] && grep -q "${mod}" "$f" 2>/dev/null && return 0
-    done
-    # Check /sys/module — exists for both loaded and built-in modules
-    [ -d "/sys/module/${mod}" ] && return 0
-    return 1
 }
 
 

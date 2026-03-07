@@ -78,14 +78,12 @@ platform_generic_linux_check_deps() {
 
 _generic_linux_check_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
-        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
-            modprobe "$mod" 2>/dev/null || true
-        fi
+        _kmod_available "$mod" && continue
+        modprobe "$mod" 2>/dev/null || true
     done
 
-    # Verify at least NFQUEUE is available
-    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE kernel module not loaded"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE kernel module not available"
         case "$B4_PKG_MANAGER" in
         apt) log_info "Try: apt install xtables-addons-common" ;;
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;

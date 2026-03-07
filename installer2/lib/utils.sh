@@ -288,6 +288,25 @@ verify_checksum() {
     fi
 }
 
+# --- Kernel module helpers ---
+# Check if a kernel module is built-in (compiled into kernel, not loadable)
+_kmod_builtin() {
+    _mod="$1"
+    _kver=$(uname -r)
+    for _f in "/lib/modules/${_kver}/modules.builtin" "/lib/modules/${_kver}/modules.builtin.modinfo"; do
+        [ -f "$_f" ] && grep -q "${_mod}" "$_f" 2>/dev/null && return 0
+    done
+    [ -d "/sys/module/${_mod}" ] && return 0
+    return 1
+}
+
+# Check if a kernel module is available (loaded OR built-in)
+_kmod_available() {
+    lsmod 2>/dev/null | grep -q "^$1" && return 0
+    _kmod_builtin "$1" && return 0
+    return 1
+}
+
 # --- Process management ---
 is_b4_running() {
     # Check PID files first (most reliable)
