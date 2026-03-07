@@ -1235,72 +1235,63 @@ features_remove() {
 }
 
 
-# ======== features/geodat.sh ========
-# Feature: GeoData files (geosite.dat + geoip.dat)
-# Downloads v2ray-format geo databases for domain/IP categorization
+# ======== features/geoip.sh ========
+# Feature: GeoIP data (geoip.dat)
+# Downloads v2ray-format geoip database for IP-based filtering
 
-GEODAT_SOURCES="1|Loyalsoldier|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
-2|RUNET Freedom (recommended)|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release
-3|Nidelon|https://github.com/Nidelon/ru-block-v2ray-rules/releases/latest/download
-4|DustinWin|https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo
-5|Chocolate4U|https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release"
+GEOIP_SOURCES="1|Loyalsoldier|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
+2|RUNET Freedom|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release
+3|B4 GeoIP (recommended)|https://github.com/DanielLavrushin/b4geoip/releases/latest/download"
 
-feature_geodat_name() {
-    echo "GeoData files"
+feature_geoip_name() {
+    echo "GeoIP data"
 }
 
-feature_geodat_description() {
-    echo "Download geosite.dat & geoip.dat for domain/IP filtering"
+feature_geoip_description() {
+    echo "Download geoip.dat for IP-based filtering"
 }
 
-feature_geodat_default_enabled() {
+feature_geoip_default_enabled() {
     echo "yes"
 }
 
-feature_geodat_run() {
+feature_geoip_run() {
     log_sep
     echo ""
 
     # Select source
-    echo "  Available geodata sources:"
-    echo "$GEODAT_SOURCES" | while IFS='|' read -r num name _url; do
+    echo "  Available geoip sources:"
+    echo "$GEOIP_SOURCES" | while IFS='|' read -r num name _url; do
         [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
     done
     echo ""
 
-    read_input "Select source [2]: " "2"
+    read_input "Select source [3]: " "3"
 
-    base_url=$(echo "$GEODAT_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
+    base_url=$(echo "$GEOIP_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
     if [ -z "$base_url" ]; then
         log_warn "Invalid selection, using default"
-        base_url=$(echo "$GEODAT_SOURCES" | grep "^2|" | cut -d'|' -f3)
+        base_url=$(echo "$GEOIP_SOURCES" | grep "^3|" | cut -d'|' -f3)
     fi
 
     # Destination directory
     save_dir="$B4_DATA_DIR"
 
-    # Check if config already has a geodat path
+    # Check if config already has a geoip path
     if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-        existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+        existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
         if [ -n "$existing" ] && [ "$existing" != "null" ]; then
             save_dir=$(dirname "$existing")
-            log_info "Found existing geodat path: $save_dir"
+            log_info "Found existing geoip path: $save_dir"
         fi
     fi
 
     read_input "Save directory [${save_dir}]: " "$save_dir"
     save_dir="$_INPUT"
 
-    ensure_dir "$save_dir" "Geodat directory" || return 1
+    ensure_dir "$save_dir" "GeoIP directory" || return 1
 
-    # Download files
-    log_info "Downloading geosite.dat..."
-    if ! fetch_file "${base_url}/geosite.dat" "${save_dir}/geosite.dat"; then
-        log_err "Failed to download geosite.dat"
-        return 1
-    fi
-    [ ! -s "${save_dir}/geosite.dat" ] && log_err "geosite.dat is empty" && return 1
-
+    # Download
     log_info "Downloading geoip.dat..."
     if ! fetch_file "${base_url}/geoip.dat" "${save_dir}/geoip.dat"; then
         log_err "Failed to download geoip.dat"
@@ -1308,92 +1299,168 @@ feature_geodat_run() {
     fi
     [ ! -s "${save_dir}/geoip.dat" ] && log_err "geoip.dat is empty" && return 1
 
-    log_ok "GeoData downloaded to ${save_dir}"
+    log_ok "geoip.dat downloaded to ${save_dir}"
 
-    # Update config
-    _geodat_update_config "${save_dir}/geosite.dat" "${save_dir}/geoip.dat" "$base_url"
+    # Update config (uses shared helper from geosite.sh)
+    _geo_update_config "ipdat_path" "${save_dir}/geoip.dat" "ipdat_url" "${base_url}/geoip.dat"
 }
 
-_geodat_update_config() {
-    sitedat_path="$1"
-    ipdat_path="$2"
-    base_url="$3"
+feature_geoip_remove() {
+    _geo_remove_file "ipdat_path" "geoip.dat"
+}
+
+register_feature "geoip"
+
+
+# ======== features/geosite.sh ========
+# Feature: GeoSite data (geosite.dat)
+# Downloads v2ray-format geosite database for domain categorization
+
+GEOSITE_SOURCES="1|Loyalsoldier|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
+2|RUNET Freedom (recommended)|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release"
+
+feature_geosite_name() {
+    echo "GeoSite data"
+}
+
+feature_geosite_description() {
+    echo "Download geosite.dat for domain categorization"
+}
+
+feature_geosite_default_enabled() {
+    echo "yes"
+}
+
+feature_geosite_run() {
+    log_sep
+    echo ""
+
+    # Select source
+    echo "  Available geosite sources:"
+    echo "$GEOSITE_SOURCES" | while IFS='|' read -r num name _url; do
+        [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
+    done
+    echo ""
+
+    read_input "Select source [2]: " "2"
+
+    base_url=$(echo "$GEOSITE_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
+    if [ -z "$base_url" ]; then
+        log_warn "Invalid selection, using default"
+        base_url=$(echo "$GEOSITE_SOURCES" | grep "^2|" | cut -d'|' -f3)
+    fi
+
+    # Destination directory
+    save_dir="$B4_DATA_DIR"
+
+    # Check if config already has a geosite path
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+        if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            save_dir=$(dirname "$existing")
+            log_info "Found existing geosite path: $save_dir"
+        fi
+    fi
+
+    read_input "Save directory [${save_dir}]: " "$save_dir"
+    save_dir="$_INPUT"
+
+    ensure_dir "$save_dir" "GeoSite directory" || return 1
+
+    # Download
+    log_info "Downloading geosite.dat..."
+    if ! fetch_file "${base_url}/geosite.dat" "${save_dir}/geosite.dat"; then
+        log_err "Failed to download geosite.dat"
+        return 1
+    fi
+    [ ! -s "${save_dir}/geosite.dat" ] && log_err "geosite.dat is empty" && return 1
+
+    log_ok "geosite.dat downloaded to ${save_dir}"
+
+    # Update config
+    _geo_update_config "sitedat_path" "${save_dir}/geosite.dat" "sitedat_url" "${base_url}/geosite.dat"
+}
+
+feature_geosite_remove() {
+    _geo_remove_file "sitedat_path" "geosite.dat"
+}
+
+register_feature "geosite"
+
+# --- Shared helpers used by both geosite and geoip features ---
+
+_geo_update_config() {
+    path_key="$1"
+    path_val="$2"
+    url_key="$3"
+    url_val="$4"
 
     if ! command_exists jq; then
         log_warn "jq not found — please update config manually:"
-        log_info "  Set system.geo.sitedat_path = $sitedat_path"
-        log_info "  Set system.geo.ipdat_path = $ipdat_path"
+        log_info "  Set system.geo.${path_key} = ${path_val}"
         return 0
     fi
 
     if [ ! -f "$B4_CONFIG_FILE" ]; then
-        # Create minimal config
+        # Create minimal config with just this geo key
         jq -n \
-            --arg sp "$sitedat_path" \
-            --arg su "${base_url}/geosite.dat" \
-            --arg ip "$ipdat_path" \
-            --arg iu "${base_url}/geoip.dat" \
-            '{ system: { geo: { sitedat_path: $sp, sitedat_url: $su, ipdat_path: $ip, ipdat_url: $iu } } }' \
+            --arg pv "$path_val" \
+            --arg uv "$url_val" \
+            "{ system: { geo: { ${path_key}: \$pv, ${url_key}: \$uv } } }" \
             >"$B4_CONFIG_FILE"
-        log_ok "Created config with geodat paths"
+        log_ok "Created config with ${path_key}"
         return 0
     fi
 
-    # Update existing config
+    # Update existing config — merge into system.geo, preserving other keys
     tmp="${B4_CONFIG_FILE}.tmp"
     if jq \
-        --arg sp "$sitedat_path" \
-        --arg su "${base_url}/geosite.dat" \
-        --arg ip "$ipdat_path" \
-        --arg iu "${base_url}/geoip.dat" \
-        '.system.geo = (.system.geo // {}) + { sitedat_path: $sp, sitedat_url: $su, ipdat_path: $ip, ipdat_url: $iu }' \
+        --arg pv "$path_val" \
+        --arg uv "$url_val" \
+        ".system.geo = (.system.geo // {}) + { \"${path_key}\": \$pv, \"${url_key}\": \$uv }" \
         "$B4_CONFIG_FILE" >"$tmp" 2>/dev/null; then
         mv "$tmp" "$B4_CONFIG_FILE"
-        log_ok "Config updated with geodat paths"
+        log_ok "Config updated: ${path_key}"
     else
         rm -f "$tmp"
-        log_warn "Failed to update config, please set paths manually"
+        log_warn "Failed to update config, please set ${path_key} manually"
     fi
 }
 
-feature_geodat_remove() {
-    # Read actual geodat paths from config (wherever user put them)
+_geo_remove_file() {
+    config_key="$1"
+    filename="$2"
+
+    # Try reading path from config
     for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
         [ -f "$cfg" ] || continue
         if command_exists jq; then
-            sitedat=$(jq -r '.system.geo.sitedat_path // empty' "$cfg" 2>/dev/null)
-            ipdat=$(jq -r '.system.geo.ipdat_path // empty' "$cfg" 2>/dev/null)
-            if [ -n "$sitedat" ] || [ -n "$ipdat" ]; then
-                _geodat_remove_files "$sitedat" "$ipdat"
+            fpath=$(jq -r ".system.geo.${config_key} // empty" "$cfg" 2>/dev/null)
+            if [ -n "$fpath" ] && [ -f "$fpath" ]; then
+                log_info "Found ${filename}: ${fpath}"
+                if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove ${filename}?" "y"; then
+                    rm -f "$fpath" && log_info "Removed: $fpath"
+                else
+                    log_info "Keeping ${filename}"
+                fi
                 return 0
             fi
         fi
     done
 
     # Fallback: check default locations
-    _geodat_remove_files "/etc/b4/geosite.dat" "/etc/b4/geoip.dat"
-    _geodat_remove_files "/opt/etc/b4/geosite.dat" "/opt/etc/b4/geoip.dat"
+    for dir in /etc/b4 /opt/etc/b4; do
+        if [ -f "${dir}/${filename}" ]; then
+            log_info "Found ${filename}: ${dir}/${filename}"
+            if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove ${filename}?" "y"; then
+                rm -f "${dir}/${filename}" && log_info "Removed: ${dir}/${filename}"
+            else
+                log_info "Keeping ${filename}"
+            fi
+            return 0
+        fi
+    done
 }
-
-_geodat_remove_files() {
-    sitedat="$1"
-    ipdat="$2"
-    found=""
-    [ -n "$sitedat" ] && [ -f "$sitedat" ] && found="${found} ${sitedat}"
-    [ -n "$ipdat" ] && [ -f "$ipdat" ] && found="${found} ${ipdat}"
-    [ -z "$found" ] && return 0
-
-    log_info "Found geodata files:${found}"
-    if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove geodata files?" "y"; then
-        for f in $found; do
-            rm -f "$f" && log_info "Removed: $f"
-        done
-    else
-        log_info "Keeping geodata files"
-    fi
-}
-
-register_feature "geodat"
 
 
 # ======== features/https.sh ========
