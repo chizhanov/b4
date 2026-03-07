@@ -483,21 +483,28 @@ wizard_start() {
     printf "${NC}"
     echo ""
 
-    log_sep
-    echo ""
-    printf "  ${BOLD}1${NC}) Automatic detection ${DIM}(recommended)${NC}\n"
-    printf "  ${BOLD}2${NC}) Manual configuration\n"
-    printf "  ${BOLD}3${NC}) System info\n"
-    printf "  ${DIM}e) Exit${NC}\n"
-    echo ""
+    while true; do
+        log_sep
+        echo ""
+        printf "  ${BOLD}1${NC}) Automatic detection ${DIM}(recommended)${NC}\n"
+        printf "  ${BOLD}2${NC}) Manual configuration\n"
+        printf "  ${BOLD}3${NC}) System info\n"
+        printf "  ${DIM}e) Exit${NC}\n"
+        echo ""
 
-    read_input "Select mode [1]: " "1"
+        read_input "Select mode [1]: " "1"
 
-    case "$_INPUT" in
-    2) WIZARD_MODE="manual" ;;
-    3) action_sysinfo; exit 0 ;;
-    *) WIZARD_MODE="auto" ;;
-    esac
+        case "$_INPUT" in
+        2) WIZARD_MODE="manual"; return 0 ;;
+        3)
+            action_sysinfo
+            echo ""
+            read_input "Press Enter to return to menu..." ""
+            echo ""
+            ;;
+        *) WIZARD_MODE="auto"; return 0 ;;
+        esac
+    done
 }
 
 # Run automatic detection and show results for review
