@@ -370,6 +370,8 @@ read_input() {
     default="$2"
     printf "${CYAN}%b${NC}" "$prompt" >&2
     read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    # Strip carriage returns (some terminals/SSH clients send \r)
+    _INPUT=$(printf '%s' "$_INPUT" | tr -d '\r')
     check_exit "$_INPUT"
     [ -z "$_INPUT" ] && _INPUT="$default"
     return 0

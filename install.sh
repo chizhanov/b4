@@ -442,6 +442,8 @@ read_input() {
     default="$2"
     printf "${CYAN}%b${NC}" "$prompt" >&2
     read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    # Strip carriage returns (some terminals/SSH clients send \r)
+    _INPUT=$(printf '%s' "$_INPUT" | tr -d '\r')
     check_exit "$_INPUT"
     [ -z "$_INPUT" ] && _INPUT="$default"
     return 0
@@ -722,7 +724,10 @@ platform_auto_detect() {
     fi
 
     # Try each registered platform's match function
+    # generic_linux is tried last since it's the catch-all
+    _fallback=""
     for p in $REGISTERED_PLATFORMS; do
+        [ "$p" = "generic_linux" ] && _fallback="generic_linux" && continue
         if platform_dispatch "$p" match 2>/dev/null; then
             B4_PLATFORM="$p"
             pname=$(platform_dispatch "$p" name)
@@ -731,14 +736,19 @@ platform_auto_detect() {
         fi
     done
 
-    # Fallback to generic_linux if registered
-    for p in $REGISTERED_PLATFORMS; do
-        if [ "$p" = "generic_linux" ]; then
-            B4_PLATFORM="generic_linux"
-            log_warn "No specific platform matched, using Generic Linux"
-            return 0
-        fi
-    done
+    # Try generic_linux last (its match() excludes known router firmwares)
+    if [ -n "$_fallback" ] && platform_dispatch "generic_linux" match 2>/dev/null; then
+        B4_PLATFORM="generic_linux"
+        log_ok "Detected platform: Generic Linux"
+        return 0
+    fi
+
+    # Nothing matched specifically — still use generic_linux as safe default
+    if [ -n "$_fallback" ]; then
+        B4_PLATFORM="generic_linux"
+        log_warn "Could not detect specific platform, defaulting to Generic Linux"
+        return 0
+    fi
 
     return 1
 }
@@ -1189,6 +1199,185 @@ platform_merlinwrt_find_storage() {
 }
 
 register_platform "merlinwrt"
+
+
+# ======== platforms/openwrt.sh ========
+# Platform: OpenWrt
+#
+# Key characteristics:
+#   - Embedded Linux distribution for routers and embedded devices
+#   - /etc/openwrt_release identifies the system
+#   - Uses procd as init system (OpenWrt 15.05+) or sysv for older versions
+#   - opkg is the package manager
+#   - Root filesystem is often SquashFS overlay with limited space
+#   - /tmp is tmpfs (volatile)
+#   - External storage may be mounted at /mnt/* or /opt (extroot/USB)
+#   - Kernel modules may need to be installed via opkg
+
+platform_openwrt_name() {
+    echo "OpenWrt"
+}
+
+platform_openwrt_match() {
+    # Primary: /etc/openwrt_release exists
+    [ -f /etc/openwrt_release ] && return 0
+
+    # Secondary: /etc/os-release contains openwrt
+    if [ -f /etc/os-release ]; then
+        grep -qi "openwrt" /etc/os-release 2>/dev/null && return 0
+    fi
+
+    # Tertiary: board.json exists (OpenWrt-specific)
+    [ -f /etc/board.json ] && return 0
+
+    return 1
+}
+
+platform_openwrt_info() {
+    # Default paths — overlay root has limited space
+    B4_BIN_DIR="/usr/bin"
+    B4_DATA_DIR="/etc/b4"
+    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+    B4_PKG_MANAGER="opkg"
+
+    # Init system: procd on modern OpenWrt, sysv fallback
+    if [ -f /sbin/procd ] || command_exists procd; then
+        B4_SERVICE_TYPE="procd"
+        B4_SERVICE_DIR="/etc/init.d"
+        B4_SERVICE_NAME="b4"
+    elif [ -d /etc/init.d ]; then
+        B4_SERVICE_TYPE="sysv"
+        B4_SERVICE_DIR="/etc/init.d"
+        B4_SERVICE_NAME="b4"
+    else
+        B4_SERVICE_TYPE="none"
+    fi
+
+    # Prefer external storage if available (/opt from extroot or USB)
+    if [ -d "/opt" ] && [ -w "/opt" ]; then
+        # Check if /opt has meaningful space (not just an empty dir on overlay)
+        _opt_avail=$(df /opt 2>/dev/null | tail -1 | awk '{print $4}')
+        if [ -n "$_opt_avail" ] && [ "$_opt_avail" -gt 10000 ] 2>/dev/null; then
+            B4_BIN_DIR="/opt/bin"
+            B4_DATA_DIR="/opt/etc/b4"
+            B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+        fi
+    fi
+
+    # Check for USB/external mounts with space
+    if [ "$B4_BIN_DIR" = "/usr/bin" ]; then
+        for mnt in /mnt/sda1 /mnt/sda2 /mnt/mmcblk* /mnt/usb*; do
+            if [ -d "$mnt" ] && [ -w "$mnt" ]; then
+                _mnt_avail=$(df "$mnt" 2>/dev/null | tail -1 | awk '{print $4}')
+                if [ -n "$_mnt_avail" ] && [ "$_mnt_avail" -gt 10000 ] 2>/dev/null; then
+                    log_info "External storage found: $mnt"
+                    B4_BIN_DIR="${mnt}/b4"
+                    B4_DATA_DIR="${mnt}/b4"
+                    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+                    break
+                fi
+            fi
+        done
+    fi
+}
+
+platform_openwrt_check_deps() {
+    # Check basic download tools
+    if ! command_exists curl && ! command_exists wget; then
+        log_warn "Neither curl nor wget found"
+        log_info "Installing wget-ssl..."
+        pkg_install wget-ssl ca-certificates || true
+    fi
+
+    command_exists tar || {
+        log_warn "tar not found"
+        pkg_install tar || true
+    }
+
+    ensure_https_support || exit 1
+
+    # Kernel modules
+    _openwrt_load_kmods
+
+    # Recommended packages
+    _openwrt_check_recommended
+}
+
+_openwrt_load_kmods() {
+    for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
+        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
+            modprobe "$mod" 2>/dev/null && continue
+            # Fallback: try insmod
+            kver=$(uname -r)
+            mod_path=$(find /lib/modules/"$kver" -name "${mod}.ko*" 2>/dev/null | head -1)
+            [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
+        fi
+    done
+
+    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE not loaded — b4 may not work"
+        log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+    fi
+}
+
+_openwrt_check_recommended() {
+    rec_missing=""
+    command_exists jq || rec_missing="${rec_missing} jq"
+    command_exists iptables || rec_missing="${rec_missing} iptables"
+
+    # SSL support
+    if ! command_exists curl || ! curl -sI --max-time 3 "https://github.com" >/dev/null 2>&1; then
+        if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
+            rec_missing="${rec_missing} ca-certificates"
+        fi
+        if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
+            rec_missing="${rec_missing} wget-ssl"
+        fi
+    fi
+
+    if [ -n "$rec_missing" ]; then
+        log_warn "Recommended but missing:${rec_missing}"
+        if confirm "Install recommended packages?"; then
+            opkg update >/dev/null 2>&1 || true
+            for pkg in $rec_missing; do
+                log_info "Installing ${pkg}..."
+                opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+            done
+        fi
+    fi
+}
+
+platform_openwrt_find_storage() {
+    # OpenWrt storage priority:
+    # 1. /opt (extroot or USB) — has space
+    # 2. External mounts at /mnt/*
+    # 3. Root overlay — very limited space
+
+    if [ -d "/opt" ] && [ -w "/opt" ]; then
+        _opt_avail=$(df /opt 2>/dev/null | tail -1 | awk '{print $4}')
+        if [ -n "$_opt_avail" ] && [ "$_opt_avail" -gt 10000 ] 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    for mnt in /mnt/sda1 /mnt/sda2 /mnt/mmcblk* /mnt/usb*; do
+        if [ -d "$mnt" ] && [ -w "$mnt" ]; then
+            return 0
+        fi
+    done
+
+    # Check root overlay space
+    _root_avail=$(df / 2>/dev/null | tail -1 | awk '{print $4}')
+    if [ -n "$_root_avail" ] && [ "$_root_avail" -lt 2000 ] 2>/dev/null; then
+        log_warn "Root filesystem has very little space ($(df -h / 2>/dev/null | tail -1 | awk '{print $4}') available)"
+        log_info "Consider using extroot or USB storage"
+        log_info "See: https://openwrt.org/docs/guide-user/additional-software/extroot_configuration"
+    fi
+
+    return 0
+}
+
+register_platform "openwrt"
 
 
 # ======== features/_interface.sh ========
@@ -1756,6 +1945,88 @@ service_none_stop() {
 }
 
 register_service "none"
+
+
+# ======== services/procd.sh ========
+# Service type: procd
+# Manages b4 using OpenWrt's procd init system
+
+service_procd_install() {
+    ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
+
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+#!/bin/sh /etc/rc.common
+# B4 DPI Bypass Service (procd)
+
+START=99
+STOP=10
+USE_PROCD=1
+
+PROG="${B4_BIN_DIR}/${BINARY_NAME}"
+CONFIG="${B4_CONFIG_FILE}"
+
+kernel_mod_load() {
+    KERNEL=\$(uname -r)
+    for mod in xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_conntrack; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
+        mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
+    done
+}
+
+start_service() {
+    kernel_mod_load
+
+    procd_open_instance
+    procd_set_param command \$PROG --config \$CONFIG
+    procd_set_param respawn \${respawn_threshold:-3600} \${respawn_timeout:-5} \${respawn_retry:-5}
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param pidfile /var/run/b4.pid
+    procd_close_instance
+}
+
+stop_service() {
+    return 0
+}
+
+service_triggers() {
+    procd_add_reload_trigger "b4"
+}
+EOF
+
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_ok "Procd init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+
+    # Enable the service to start on boot
+    "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" enable 2>/dev/null || true
+    log_info "Service enabled for boot"
+}
+
+service_procd_remove() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" disable 2>/dev/null || true
+        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+        log_info "Removed procd service: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    fi
+}
+
+service_procd_start() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" restart 2>/dev/null && log_ok "Service started" && return 0
+    fi
+    log_warn "Could not start service"
+    return 1
+}
+
+service_procd_stop() {
+    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+    fi
+}
+
+register_service "procd"
 
 
 # ======== services/systemd.sh ========
@@ -2342,7 +2613,11 @@ action_sysinfo() {
         fi
     fi
 
-    # Platform detection
+    # Platform detection (save/restore to avoid leaking into wizard)
+    _saved_platform="$B4_PLATFORM"
+    _saved_bin_dir="$B4_BIN_DIR"
+    _saved_data_dir="$B4_DATA_DIR"
+    _saved_service_type="$B4_SERVICE_TYPE"
     platform_auto_detect 2>/dev/null || true
     if [ -n "$B4_PLATFORM" ]; then
         pname=$(platform_dispatch "$B4_PLATFORM" name 2>/dev/null)
@@ -2359,18 +2634,21 @@ action_sysinfo() {
     found_bin=""
     for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
         [ -z "$dir" ] && continue
-        if [ -f "${dir}/${BINARY_NAME}" ]; then
-            found_bin="${dir}/${BINARY_NAME}"
-            break
+        if [ -f "${dir}/${BINARY_NAME}" ] && [ -x "${dir}/${BINARY_NAME}" ]; then
+            # Verify it's actually our b4 (not another tool with the same name)
+            _ver_out=$("${dir}/${BINARY_NAME}" --version 2>&1 | head -1) || _ver_out=""
+            if echo "$_ver_out" | grep -qi "b4\|bypass\|dpi"; then
+                found_bin="${dir}/${BINARY_NAME}"
+                break
+            fi
         fi
     done
 
     if [ -n "$found_bin" ]; then
         log_detail "Binary" "$found_bin"
-        ver=$("$found_bin" --version 2>&1 | head -1) || ver="unknown"
-        log_detail "Version" "$ver"
+        log_detail "Version" "$_ver_out"
     else
-        log_detail "Binary" "${RED}not found${NC}"
+        log_detail "Binary" "${YELLOW}not found${NC}"
     fi
 
     # Config file
@@ -2523,17 +2801,42 @@ action_sysinfo() {
     # --- Storage ---
     echo ""
     log_info "Storage:"
+    _sysinfo_shown_devs=""
     for dir in / /opt /tmp /jffs /mnt/sda1 /etc/storage; do
         if [ -d "$dir" ]; then
-            avail=$(df -h "$dir" 2>/dev/null | tail -1 | awk '{print $4}')
-            writable="rw"
-            [ ! -w "$dir" ] && writable="ro"
-            printf "    %-15s %s available (%s)\n" "$dir" "${avail:-?}" "$writable" >&2
+            _sysinfo_show_storage "$dir"
         fi
+    done
+    # Auto-discover mounted USB/external storage under /mnt
+    for dir in /mnt/*; do
+        [ -d "$dir" ] || continue
+        # Skip already-shown entries
+        case "$dir" in /mnt/sda1) continue ;; esac
+        _sysinfo_show_storage "$dir"
     done
 
     echo ""
     log_sep
+
+    # Restore globals so sysinfo doesn't leak into wizard
+    B4_PLATFORM="$_saved_platform"
+    B4_BIN_DIR="$_saved_bin_dir"
+    B4_DATA_DIR="$_saved_data_dir"
+    B4_SERVICE_TYPE="$_saved_service_type"
+}
+
+_sysinfo_show_storage() {
+    _dir="$1"
+    # Get underlying device to avoid showing the same filesystem twice
+    _dev=$(df "$_dir" 2>/dev/null | tail -1 | awk '{print $1}')
+    case "$_sysinfo_shown_devs" in
+    *"|${_dev}|"*) return 0 ;; # already shown
+    esac
+    _sysinfo_shown_devs="${_sysinfo_shown_devs}|${_dev}|"
+    avail=$(df -h "$_dir" 2>/dev/null | tail -1 | awk '{print $4}')
+    writable="rw"
+    [ ! -w "$_dir" ] && writable="ro"
+    printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
 }
 
 # Check if a kernel module is built-in (not loadable but compiled into kernel)

@@ -30,7 +30,11 @@ action_sysinfo() {
         fi
     fi
 
-    # Platform detection
+    # Platform detection (save/restore to avoid leaking into wizard)
+    _saved_platform="$B4_PLATFORM"
+    _saved_bin_dir="$B4_BIN_DIR"
+    _saved_data_dir="$B4_DATA_DIR"
+    _saved_service_type="$B4_SERVICE_TYPE"
     platform_auto_detect 2>/dev/null || true
     if [ -n "$B4_PLATFORM" ]; then
         pname=$(platform_dispatch "$B4_PLATFORM" name 2>/dev/null)
@@ -47,18 +51,21 @@ action_sysinfo() {
     found_bin=""
     for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
         [ -z "$dir" ] && continue
-        if [ -f "${dir}/${BINARY_NAME}" ]; then
-            found_bin="${dir}/${BINARY_NAME}"
-            break
+        if [ -f "${dir}/${BINARY_NAME}" ] && [ -x "${dir}/${BINARY_NAME}" ]; then
+            # Verify it's actually our b4 (not another tool with the same name)
+            _ver_out=$("${dir}/${BINARY_NAME}" --version 2>&1 | head -1) || _ver_out=""
+            if echo "$_ver_out" | grep -qi "b4\|bypass\|dpi"; then
+                found_bin="${dir}/${BINARY_NAME}"
+                break
+            fi
         fi
     done
 
     if [ -n "$found_bin" ]; then
         log_detail "Binary" "$found_bin"
-        ver=$("$found_bin" --version 2>&1 | head -1) || ver="unknown"
-        log_detail "Version" "$ver"
+        log_detail "Version" "$_ver_out"
     else
-        log_detail "Binary" "${RED}not found${NC}"
+        log_detail "Binary" "${YELLOW}not found${NC}"
     fi
 
     # Config file
@@ -211,17 +218,42 @@ action_sysinfo() {
     # --- Storage ---
     echo ""
     log_info "Storage:"
+    _sysinfo_shown_devs=""
     for dir in / /opt /tmp /jffs /mnt/sda1 /etc/storage; do
         if [ -d "$dir" ]; then
-            avail=$(df -h "$dir" 2>/dev/null | tail -1 | awk '{print $4}')
-            writable="rw"
-            [ ! -w "$dir" ] && writable="ro"
-            printf "    %-15s %s available (%s)\n" "$dir" "${avail:-?}" "$writable" >&2
+            _sysinfo_show_storage "$dir"
         fi
+    done
+    # Auto-discover mounted USB/external storage under /mnt
+    for dir in /mnt/*; do
+        [ -d "$dir" ] || continue
+        # Skip already-shown entries
+        case "$dir" in /mnt/sda1) continue ;; esac
+        _sysinfo_show_storage "$dir"
     done
 
     echo ""
     log_sep
+
+    # Restore globals so sysinfo doesn't leak into wizard
+    B4_PLATFORM="$_saved_platform"
+    B4_BIN_DIR="$_saved_bin_dir"
+    B4_DATA_DIR="$_saved_data_dir"
+    B4_SERVICE_TYPE="$_saved_service_type"
+}
+
+_sysinfo_show_storage() {
+    _dir="$1"
+    # Get underlying device to avoid showing the same filesystem twice
+    _dev=$(df "$_dir" 2>/dev/null | tail -1 | awk '{print $1}')
+    case "$_sysinfo_shown_devs" in
+    *"|${_dev}|"*) return 0 ;; # already shown
+    esac
+    _sysinfo_shown_devs="${_sysinfo_shown_devs}|${_dev}|"
+    avail=$(df -h "$_dir" 2>/dev/null | tail -1 | awk '{print $4}')
+    writable="rw"
+    [ ! -w "$_dir" ] && writable="ro"
+    printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
 }
 
 # Check if a kernel module is built-in (not loadable but compiled into kernel)
