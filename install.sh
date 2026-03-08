@@ -1758,7 +1758,26 @@ service_entware_remove() {
 
 service_entware_start() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null || {
+            log_warn "Could not start service"
+            return 1
+        }
+        sleep 2
+        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        for _logf in /var/log/b4/errors.log /opt/var/log/b4.log; do
+            if [ -s "$_logf" ]; then
+                log_info "Last log entries from $_logf:"
+                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
+                    log_info "  $_line"
+                done
+                break
+            fi
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1
@@ -1852,7 +1871,23 @@ service_procd_remove() {
 
 service_procd_start() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" restart 2>/dev/null && log_ok "Service started" && return 0
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" restart 2>/dev/null || { log_warn "Could not start service"; return 1; }
+        sleep 2
+        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        for _logf in /var/log/b4/errors.log /tmp/log/b4.log; do
+            if [ -s "$_logf" ]; then
+                log_info "Last log entries from $_logf:"
+                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
+                    log_info "  $_line"
+                done
+                break
+            fi
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1
@@ -1901,8 +1936,17 @@ service_systemd_remove() {
 
 service_systemd_start() {
     if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
-        log_ok "Service started"
-        return 0
+        sleep 2
+        if systemctl is-active --quiet "${B4_SERVICE_NAME}" 2>/dev/null; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        log_info "Check logs with: journalctl -u ${B4_SERVICE_NAME} --no-pager -n 10"
+        journalctl -u "${B4_SERVICE_NAME}" --no-pager -n 5 2>/dev/null | while IFS= read -r _line; do
+            log_info "  $_line"
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1
@@ -1983,7 +2027,23 @@ service_sysv_remove() {
 
 service_sysv_start() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null || { log_warn "Could not start service"; return 1; }
+        sleep 2
+        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        for _logf in /var/log/b4/errors.log /var/log/b4.log; do
+            if [ -s "$_logf" ]; then
+                log_info "Last log entries from $_logf:"
+                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
+                    log_info "  $_line"
+                done
+                break
+            fi
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1
