@@ -79,7 +79,8 @@ export const AddIpModal = ({
       setNewSetName("");
       setVariants(initialVariants);
       if (sets.length > 0) {
-        setSelectedSetId(sets[0]?.id ?? "");
+        const firstEnabled = sets.find((s) => s.enabled);
+        setSelectedSetId(firstEnabled?.id ?? sets[0]?.id ?? "");
       }
     }
   }, [open, sets, initialVariants, ip]);

@@ -53,7 +53,8 @@ export const AddSniModal = ({
       if (createNewSet) {
         setSelectedSetId(NEW_SET_ID);
       } else if (sets.length > 0) {
-        setSelectedSetId(sets[0]?.id ?? "");
+        const firstEnabled = sets.find((s) => s.enabled);
+        setSelectedSetId(firstEnabled?.id ?? sets[0]?.id ?? "");
       }
     }
   }, [open, sets, createNewSet]);

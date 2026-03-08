@@ -528,13 +528,13 @@ func parsePortRangeStr(part string) (PortRange, bool) {
 		if len(bounds) == 2 {
 			min, err1 := strconv.Atoi(bounds[0])
 			max, err2 := strconv.Atoi(bounds[1])
-			if err1 == nil && err2 == nil && min >= 0 && max >= 0 && min <= max {
+			if err1 == nil && err2 == nil && min >= 1 && max >= 1 && min <= max && min <= 65535 && max <= 65535 {
 				return PortRange{Min: uint16(min), Max: uint16(max)}, true
 			}
 		}
 	} else {
 		port, err := strconv.Atoi(part)
-		if err == nil && port >= 0 {
+		if err == nil && port >= 1 && port <= 65535 {
 			return PortRange{Min: uint16(port), Max: uint16(port)}, true
 		}
 	}

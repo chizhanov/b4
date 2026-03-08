@@ -386,7 +386,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
       void checkFileStatus();
       setTimeout(() => setGeositeStatus(""), 5000);
     } catch (error) {
-      setGeositeStatus(`Error: ${String(error)}`);
+      setGeositeStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setGeositeDownloading(false);
     }
@@ -413,7 +413,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
       void checkFileStatus();
       setTimeout(() => setGeoipStatus(""), 5000);
     } catch (error) {
-      setGeoipStatus(`Error: ${String(error)}`);
+      setGeoipStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setGeoipDownloading(false);
     }
@@ -430,7 +430,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
       void checkFileStatus();
       setTimeout(() => setGeositeStatus(""), 5000);
     } catch (error) {
-      setGeositeStatus(`Error: ${String(error)}`);
+      setGeositeStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setGeositeUploading(false);
     }
@@ -447,7 +447,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
       void checkFileStatus();
       setTimeout(() => setGeoipStatus(""), 5000);
     } catch (error) {
-      setGeoipStatus(`Error: ${String(error)}`);
+      setGeoipStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setGeoipUploading(false);
     }

@@ -58,7 +58,8 @@ export const SetSelector = ({
               <Button
                 size="small"
                 onClick={() => {
-                  onChange(value || sets[0]?.id || "");
+                  const firstEnabled = sets.find((s) => s.enabled);
+                  onChange(value || firstEnabled?.id || sets[0]?.id || "");
                   handleCancelCreate();
                 }}
                 sx={{ minWidth: "auto" }}
