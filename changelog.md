@@ -1,6 +1,6 @@
 # B4 - Bye Bye Big Bro
 
-## [1.40.2] - 2026-03-09
+## [1.41.0] - 2026-03-09
 
 - ADDED: **DPI Detector results are now saved** — after running detection tests, your results are saved and shown in a "Previous Results" section. You can expand any past run to see full details, or delete individual entries.
 - ADDED: **DPI Detector remembers your test selection** — the test toggles (DNS, Domains, TCP, SNI) are now remembered between visits.
