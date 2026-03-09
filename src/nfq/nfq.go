@@ -217,6 +217,14 @@ func (w *Worker) Start() error {
 					set = nil
 				}
 
+				if mLearned, learnedSet, _ := matcher.MatchLearnedIPWithSource(dst, srcMac); mLearned {
+					if learnedSet.MatchesTCPDPort(dport) {
+						matched = true
+						set = learnedSet
+						st = learnedSet
+					}
+				}
+
 				// If IP matching didn't find a set, try TCP port-based set matching
 				if !matched && cfg.IsTCPPort(dport) {
 					if portMatched, portSet := matcher.MatchTCPPort(dport); portMatched {

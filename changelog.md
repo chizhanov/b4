@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.40.2] - 2026-03-09
+
+- FIXED: **Wrong set assigned to traffic** — in rare cases, traffic could be matched to the wrong set when multiple sets had overlapping IP ranges (e.g., a set with specific IPs and another with broad geo-IP categories like "cloudflare"). The most specific match now always wins. Also, subsequent TCP packets now correctly use the set that was previously identified by domain name, instead of falling back to a less accurate IP-only match.
+
 ## [1.40.1] - 2026-03-09
 
 - IMPROVED: **Better firewall error messages** — errors now show which rule failed and why, instead of just "exit status x".
