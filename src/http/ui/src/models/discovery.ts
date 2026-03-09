@@ -80,3 +80,19 @@ export interface DiscoveryResponse {
   domains?: string[];
   check_url: string;
 }
+
+export interface HistoryEntry {
+  domain: string;
+  url: string;
+  best_preset: string;
+  best_speed: number;
+  best_success: boolean;
+  best_family?: StrategyFamily;
+  status: "complete" | "failed" | "canceled";
+  start_time: string;
+  end_time: string;
+  results?: Record<string, DomainPresetResult>;
+  dns_result?: DNSDiscoveryResult;
+  baseline_speed?: number;
+  improvement?: number;
+}

@@ -1714,6 +1714,11 @@ func (ds *DiscoverySuite) finalize() {
 	ds.Status = CheckStatusComplete
 	ds.CheckSuite.mu.Unlock()
 
+	// Persist results to history
+	if ds.cfg != nil {
+		SaveToHistory(ds.CheckSuite, ds.cfg.ConfigPath)
+	}
+
 	go func() {
 		time.Sleep(30 * time.Second)
 		suitesMu.Lock()

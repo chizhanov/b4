@@ -216,7 +216,7 @@ func (p *DNSProber) Probe(ctx context.Context) *DNSDiscoveryResult {
 // findDNSBypass tries fragmentation and alternative DNS servers to bypass poisoning.
 func (p *DNSProber) findDNSBypass(ctx context.Context, result *DNSDiscoveryResult, expectedIP string) {
 	// Try fragmented query on system resolver first.
-	fragResult := p.testDNSWithFragment("", expectedIP)
+	fragResult := p.testDNSWithFragment(ctx, "", expectedIP)
 	result.ProbeResults = append(result.ProbeResults, fragResult)
 	if fragResult.Works {
 		result.NeedsFragment = true
@@ -234,7 +234,7 @@ func (p *DNSProber) findDNSBypass(ctx context.Context, result *DNSDiscoveryResul
 			return
 		}
 
-		fragAltResult := p.testDNSWithFragment(server, expectedIP)
+		fragAltResult := p.testDNSWithFragment(ctx, server, expectedIP)
 		result.ProbeResults = append(result.ProbeResults, fragAltResult)
 		if fragAltResult.Works {
 			result.BestServer = server
@@ -518,7 +518,7 @@ func (p *DNSProber) testIPServesDomain(ctx context.Context, ip string) bool {
 	return true
 }
 
-func (p *DNSProber) testDNSWithFragment(server string, expectedIP string) DNSProbeResult {
+func (p *DNSProber) testDNSWithFragment(ctx context.Context, server string, expectedIP string) DNSProbeResult {
 	result := DNSProbeResult{
 		Server:     server,
 		Fragmented: true,
@@ -534,17 +534,21 @@ func (p *DNSProber) testDNSWithFragment(server string, expectedIP string) DNSPro
 
 	time.Sleep(time.Duration(p.cfg.System.Checker.ConfigPropagateMs) * time.Millisecond)
 
+	// Use a timeout so we don't hang if fragmented DNS gets no response
+	lookupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	// Now DNS queries should be fragmented via NFQ
 	start := time.Now()
-	ips, err := net.LookupIP(p.domain)
+	ips, err := net.DefaultResolver.LookupIPAddr(lookupCtx, p.domain)
 	result.Latency = time.Since(start)
 
 	if err != nil || len(ips) == 0 {
 		return result
 	}
 
-	result.ResolvedIP = ips[0].String()
-	result.Works = p.testIPServesDomain(context.Background(), result.ResolvedIP)
+	result.ResolvedIP = ips[0].IP.String()
+	result.Works = p.testIPServesDomain(ctx, result.ResolvedIP)
 	result.IsPoisoned = !result.Works
 
 	return result
