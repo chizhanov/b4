@@ -272,8 +272,8 @@ export const TargetSettings = ({
     setIpDuplicateWarning("");
   };
 
-  const handleClearAllBypassIPs = () => {
-    onChange("targets.ip", []);
+  const handleClearAll = (field: string) => {
+    onChange(field, []);
   };
 
   const handleRemoveBypassIP = (ip: string) => {
@@ -468,12 +468,32 @@ export const TargetSettings = ({
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="subtitle2">
+                        Active manually added domains ({config.targets.sni_domains.length})
+                      </Typography>
+                      {config.targets.sni_domains.length > 0 && (
+                        <Button
+                          size="small"
+                          onClick={() => handleClearAll("targets.sni_domains")}
+                          startIcon={<ClearIcon />}
+                        >
+                          Clear All
+                        </Button>
+                      )}
+                    </Box>
                     <B4ChipList
                       items={config.targets.sni_domains}
                       getKey={(d) => d}
                       getLabel={(d) => d}
                       onDelete={handleRemoveBypassDomain}
-                      title="Active manually added domains"
                       emptyMessage="No bypass domains added"
                       showEmpty
                     />
@@ -605,7 +625,7 @@ export const TargetSettings = ({
                       {config.targets.ip.length > 0 && (
                         <Button
                           size="small"
-                          onClick={handleClearAllBypassIPs}
+                          onClick={() => handleClearAll("targets.ip")}
                           startIcon={<ClearIcon />}
                         >
                           Clear All
