@@ -216,7 +216,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", pkt.dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("TCP-DUP", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name)
+		m.RecordConnection("TCP-DUP", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, "")
 		m.RecordPacket(uint64(len(pkt.raw)))
 
 		if !log.IsDiscoveryActive() {
@@ -250,7 +250,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("TCP SYN to %s:%d (set: %s)", pkt.dstStr, dport, set.Name)
 
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("TCP-SYN", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name)
+		m.RecordConnection("TCP-SYN", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, "")
 
 		if pkt.ver == IPv4 {
 			if set.TCP.SynFake {
@@ -337,7 +337,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		if matched {
 			setName = set.Name
 		}
-		m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName)
+		m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, config.TLSVersionString(tlsVersion))
 		m.RecordPacket(uint64(len(pkt.raw)))
 	}
 
@@ -479,11 +479,12 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	matched = shouldHandle
 
+	udpTLS := ""
+	if host != "" {
+		udpTLS = "1.3" // QUIC is always TLS 1.3
+	}
+
 	if !log.IsDiscoveryActive() {
-		udpTLS := ""
-		if host != "" {
-			udpTLS = "1.3" // QUIC is always TLS 1.3
-		}
 		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS)
 	}
 
@@ -493,7 +494,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	if !shouldHandle {
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, false, pkt.srcMac, "")
+		m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, false, pkt.srcMac, "", udpTLS)
 		m.RecordPacket(uint64(len(pkt.raw)))
 		return accept(q, id)
 	}
@@ -503,7 +504,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	if matched {
 		setName = set.Name
 	}
-	m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName)
+	m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, udpTLS)
 	m.RecordPacket(uint64(len(pkt.raw)))
 
 	switch set.UDP.Mode {

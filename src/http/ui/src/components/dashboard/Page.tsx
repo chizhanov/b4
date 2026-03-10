@@ -63,6 +63,7 @@ export interface Metrics {
     message: string;
   }>;
   device_domains: Record<string, Record<string, number>>;
+  domain_tls: Record<string, string>;
   current_cps: number;
   current_pps: number;
 }
@@ -109,6 +110,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
       recent_connections: [],
       recent_events: [],
       device_domains: {},
+      domain_tls: {},
       current_cps: 0,
       current_pps: 0,
     };
@@ -233,6 +235,15 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
             ]),
           )
         : {},
+    domain_tls:
+      data.domain_tls && typeof data.domain_tls === "object"
+        ? Object.fromEntries(
+            Object.entries(data.domain_tls).map(([k, v]) => [
+              String(k),
+              String(v ?? ""),
+            ]),
+          )
+        : {},
     current_cps: safeNumber(data.current_cps),
     current_pps: safeNumber(data.current_pps),
   };
@@ -322,6 +333,7 @@ export function DashboardPage() {
 
       <DeviceActivity
         deviceDomains={metrics.device_domains}
+        domainTLS={metrics.domain_tls}
         sets={sets}
         targetedDomains={targetedDomains}
         onRefreshSets={refreshSets}
@@ -329,6 +341,7 @@ export function DashboardPage() {
 
       <UnmatchedDomains
         topDomains={metrics.top_domains}
+        domainTLS={metrics.domain_tls}
         sets={sets}
         targetedDomains={targetedDomains}
         onRefreshSets={refreshSets}

@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -33,6 +34,7 @@ type MetricsCollector struct {
 	RecentConnections []ConnectionLog                    `json:"recent_connections"`
 	RecentEvents      []SystemEvent                      `json:"recent_events"`
 	DeviceDomains     map[string]map[string]uint64       `json:"device_domains"`
+	DomainTLS         map[string]string                  `json:"domain_tls"`
 
 	lastUpdate      time.Time    `json:"-"`
 	mu              sync.RWMutex `json:"-"`
@@ -96,6 +98,7 @@ func GetMetricsCollector() *MetricsCollector {
 			RecentEvents:      make([]SystemEvent, 0, 20),
 			WorkerStatus:      make([]WorkerHealth, 0),
 			DeviceDomains:     make(map[string]map[string]uint64),
+			DomainTLS:         make(map[string]string),
 			NFQueueStatus:     "active",
 			TablesStatus:      "active",
 			lastUpdate:        time.Now(),
@@ -177,7 +180,7 @@ func (m *MetricsCollector) updateSystemStats() {
 	m.CPUUsage = float64(runtime.NumGoroutine())
 }
 
-func (m *MetricsCollector) RecordConnection(protocol, domain, source, destination string, isTarget bool, sourceMac, hostSet string) {
+func (m *MetricsCollector) RecordConnection(protocol, domain, source, destination string, isTarget bool, sourceMac, hostSet, tlsVersion string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -201,6 +204,13 @@ func (m *MetricsCollector) RecordConnection(protocol, domain, source, destinatio
 		m.TopDomains[domain]++
 		if len(m.TopDomains) > 20 {
 			m.pruneTopDomains()
+		}
+		if tlsVersion != "" {
+			if existing, ok := m.DomainTLS[domain]; !ok {
+				m.DomainTLS[domain] = tlsVersion
+			} else if existing != tlsVersion && !strings.Contains(existing, tlsVersion) {
+				m.DomainTLS[domain] = existing + "," + tlsVersion
+			}
 		}
 	}
 
@@ -322,6 +332,7 @@ func (m *MetricsCollector) ResetStats() {
 	m.ProtocolDist = make(map[string]uint64)
 	m.GeoDist = make(map[string]uint64)
 	m.DeviceDomains = make(map[string]map[string]uint64)
+	m.DomainTLS = make(map[string]string)
 
 	m.ConnectionRate = make([]TimeSeriesPoint, 0, 60)
 	m.PacketRate = make([]TimeSeriesPoint, 0, 60)
@@ -414,6 +425,11 @@ func (m *MetricsCollector) GetSnapshot() *MetricsCollector {
 		copy(snapshot.RecentEvents, m.RecentEvents)
 	} else {
 		snapshot.RecentEvents = make([]SystemEvent, 0)
+	}
+
+	snapshot.DomainTLS = make(map[string]string, len(m.DomainTLS))
+	for k, v := range m.DomainTLS {
+		snapshot.DomainTLS[k] = v
 	}
 
 	snapshot.DeviceDomains = make(map[string]map[string]uint64, len(m.DeviceDomains))

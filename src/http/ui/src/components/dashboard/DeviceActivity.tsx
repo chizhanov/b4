@@ -21,6 +21,7 @@ import { colors } from "@design";
 import { formatNumber } from "@utils";
 import { B4SetConfig } from "@models/config";
 import { setsApi } from "@b4.sets";
+import { B4Badge } from "@b4.elements";
 
 interface DeviceInfo {
   mac: string;
@@ -32,6 +33,7 @@ interface DeviceInfo {
 
 interface DeviceActivityProps {
   deviceDomains: Record<string, Record<string, number>>;
+  domainTLS: Record<string, string>;
   sets: B4SetConfig[];
   targetedDomains: Set<string>;
   onRefreshSets: () => void;
@@ -39,6 +41,7 @@ interface DeviceActivityProps {
 
 export const DeviceActivity = ({
   deviceDomains,
+  domainTLS,
   sets,
   targetedDomains,
   onRefreshSets,
@@ -229,6 +232,7 @@ export const DeviceActivity = ({
                         key={domain}
                         domain={domain}
                         count={count}
+                        tls={domainTLS[domain]}
                         isTargeted={isDomainTargeted(domain)}
                         sets={sets}
                         onAdded={onRefreshSets}
@@ -248,6 +252,7 @@ export const DeviceActivity = ({
 interface DomainRowProps {
   domain: string;
   count: number;
+  tls?: string;
   isTargeted: boolean;
   sets: B4SetConfig[];
   onAdded: () => void;
@@ -256,6 +261,7 @@ interface DomainRowProps {
 const DomainRow = ({
   domain,
   count,
+  tls,
   isTargeted,
   sets,
   onAdded,
@@ -294,28 +300,9 @@ const DomainRow = ({
         alignItems="center"
         sx={{ minWidth: 0, flex: 1 }}
       >
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.primary,
-            fontSize: "0.75rem",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {domain}
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.disabled,
-            fontSize: "0.65rem",
-            flexShrink: 0,
-          }}
-        >
-          {formatNumber(count)}
-        </Typography>
+        {tls && <B4Badge label={tls} color="secondary" title="TLS Version" />}
+        <Typography variant="overline">{domain}</Typography>
+        <B4Badge label={formatNumber(count)} />
       </Stack>
 
       {isTargeted ? (
