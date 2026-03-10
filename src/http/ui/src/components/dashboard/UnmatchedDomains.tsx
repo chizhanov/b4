@@ -14,16 +14,23 @@ import { colors } from "@design";
 import { formatNumber } from "@utils";
 import { B4SetConfig } from "@models/config";
 import { setsApi } from "@b4.sets";
+import { B4Badge } from "@b4.elements";
 
 interface UnmatchedDomainsProps {
   topDomains: Record<string, number>;
+  domainTLS: Record<string, string>;
   sets: B4SetConfig[];
   targetedDomains: Set<string>;
   onRefreshSets: () => void;
 }
 
-export const UnmatchedDomains = ({ topDomains, sets, targetedDomains, onRefreshSets }: UnmatchedDomainsProps) => {
-
+export const UnmatchedDomains = ({
+  topDomains,
+  domainTLS,
+  sets,
+  targetedDomains,
+  onRefreshSets,
+}: UnmatchedDomainsProps) => {
   const isDomainTargeted = (domain: string): boolean => {
     if (targetedDomains.has(domain)) return true;
     const parts = domain.split(".");
@@ -70,6 +77,7 @@ export const UnmatchedDomains = ({ topDomains, sets, targetedDomains, onRefreshS
             key={domain}
             domain={domain}
             count={count}
+            tls={domainTLS[domain]}
             sets={sets}
             onAdded={onRefreshSets}
           />
@@ -82,11 +90,18 @@ export const UnmatchedDomains = ({ topDomains, sets, targetedDomains, onRefreshS
 interface UnmatchedRowProps {
   domain: string;
   count: number;
+  tls?: string;
   sets: B4SetConfig[];
   onAdded: () => void;
 }
 
-const UnmatchedRow = ({ domain, count, sets, onAdded }: UnmatchedRowProps) => {
+const UnmatchedRow = ({
+  domain,
+  count,
+  tls,
+  sets,
+  onAdded,
+}: UnmatchedRowProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
 
@@ -115,31 +130,23 @@ const UnmatchedRow = ({ domain, count, sets, onAdded }: UnmatchedRowProps) => {
         "&:hover": { bgcolor: `${colors.primary}06` },
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.primary,
-            fontSize: "0.75rem",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {domain}
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{ color: colors.text.disabled, fontSize: "0.65rem", flexShrink: 0 }}
-        >
-          {formatNumber(count)}
-        </Typography>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ minWidth: 0, flex: 1 }}
+      >
+        {tls && <B4Badge label={tls} color="secondary" title="TLS Version" />}
+        <Typography variant="overline">{domain}</Typography>
+        <B4Badge label={formatNumber(count)} />
       </Stack>
 
       <Tooltip title="Add to set">
         <IconButton
           size="small"
-          onClick={(e) => { setAnchorEl(e.currentTarget); }}
+          onClick={(e) => {
+            setAnchorEl(e.currentTarget);
+          }}
           disabled={adding}
           sx={{ color: colors.secondary, ml: 0.5, p: 0.25 }}
         >
@@ -149,7 +156,9 @@ const UnmatchedRow = ({ domain, count, sets, onAdded }: UnmatchedRowProps) => {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={() => { setAnchorEl(null); }}
+        onClose={() => {
+          setAnchorEl(null);
+        }}
         slotProps={{
           paper: {
             sx: {

@@ -195,7 +195,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if mLearned, learnedSet, _ := matcher.MatchLearnedIPWithSource(pkt.dst, pkt.srcMac); mLearned {
-		if learnedSet.MatchesTCPDPort(dport) {
+		if learnedSet.MatchesTCPDPort(dport) && learnedSet.Targets.TLSVersion == "" {
 			matched = true
 			set = learnedSet
 			st = learnedSet
@@ -216,7 +216,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", pkt.dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("TCP-DUP", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name)
+		m.RecordConnection("TCP-DUP", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, "")
 		m.RecordPacket(uint64(len(pkt.raw)))
 
 		if !log.IsDiscoveryActive() {
@@ -250,7 +250,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("TCP SYN to %s:%d (set: %s)", pkt.dstStr, dport, set.Name)
 
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("TCP-SYN", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name)
+		m.RecordConnection("TCP-SYN", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, "")
 
 		if pkt.ver == IPv4 {
 			if set.TCP.SynFake {
@@ -277,6 +277,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	host := ""
+	var tlsVersion uint16
 	matchedIP := st != nil
 	matchedSNI := false
 	ipTarget := ""
@@ -295,14 +296,14 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
-		host, _ = sni.ParseTLSClientHelloSNI(payload)
+		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
 
 		if captureManager := capture.GetManager(cfg); captureManager != nil {
 			captureManager.CapturePayload(connKey, host, "tls", payload)
 		}
 
 		if host != "" {
-			if mSNI, stSNI := matcher.MatchSNIWithSource(host, pkt.srcMac); mSNI {
+			if mSNI, stSNI := matcher.MatchSNIWithSourceTLS(host, pkt.srcMac, tlsVersion); mSNI {
 				// If SNI-matched set has a port filter, verify port matches (AND logic)
 				if stSNI.MatchesTCPDPort(dport) {
 					matchedSNI = true
@@ -312,17 +313,22 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 				}
 			}
 		}
+
+		// If IP-matched set has a TLS version filter that doesn't match, clear it
+		if matched && !matchedSNI && set != nil && !set.MatchesTLSVersion(tlsVersion) {
+			matched = false
+			set = nil
+		}
 	}
 
-	if matchedIP {
-		ipTarget = st.Name
-	}
 	if matchedSNI {
 		sniTarget = set.Name
+	} else if matchedIP {
+		ipTarget = st.Name
 	}
 
 	if !log.IsDiscoveryActive() {
-		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac)
+		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
 	}
 
 	{
@@ -331,7 +337,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		if matched {
 			setName = set.Name
 		}
-		m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName)
+		m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, config.TLSVersionString(tlsVersion))
 		m.RecordPacket(uint64(len(pkt.raw)))
 	}
 
@@ -448,7 +454,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if host != "" {
-		if mSNI, sniSet := matcher.MatchSNIWithSource(host, pkt.srcMac); mSNI {
+		if mSNI, sniSet := matcher.MatchSNIWithSourceTLS(host, pkt.srcMac, 0x0304); mSNI { // QUIC is always TLS 1.3
 			// If SNI-matched set has a port filter, verify port matches (AND logic)
 			if sniSet.MatchesUDPDPort(dport) {
 				matchedQUIC = true
@@ -473,8 +479,13 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	matched = shouldHandle
 
+	udpTLS := ""
+	if matchedQUIC {
+		udpTLS = "1.3" // QUIC is always TLS 1.3
+	}
+
 	if !log.IsDiscoveryActive() {
-		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac)
+		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS)
 	}
 
 	if isSTUN && set != nil && set.UDP.FilterSTUN {
@@ -483,7 +494,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	if !shouldHandle {
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, false, pkt.srcMac, "")
+		m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, false, pkt.srcMac, "", udpTLS)
 		m.RecordPacket(uint64(len(pkt.raw)))
 		return accept(q, id)
 	}
@@ -493,7 +504,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	if matched {
 		setName = set.Name
 	}
-	m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName)
+	m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, udpTLS)
 	m.RecordPacket(uint64(len(pkt.raw)))
 
 	switch set.UDP.Mode {

@@ -468,7 +468,7 @@ func (s *Server) logAndRecordConnection(protocol, clientAddr, dest string) {
 
 	if m := metrics.GetMetricsCollector(); m != nil {
 		matched := matchedSNI || matchedIP
-		m.RecordConnection(baseProtocol, domain, clientAddr, dest, matched, "", setName)
+		m.RecordConnection(baseProtocol, domain, clientAddr, dest, matched, "", setName, "")
 	}
 }
 
