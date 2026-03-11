@@ -77,7 +77,7 @@ export const WebServerSettings = ({
             onChange("system.web_server.password", e.target.value)
           }
           placeholder=""
-          helperText="Basic auth password for the web UI"
+          helperText="Password for logging into the web UI"
           autoComplete="new-password"
         />
       </B4FormGroup>
