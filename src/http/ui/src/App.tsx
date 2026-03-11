@@ -177,21 +177,6 @@ export default function App() {
               })}
             </List>
             <Box sx={{ flexGrow: 1 }} />
-            {authRequired && (
-              <>
-                <Divider sx={{ borderColor: colors.border.default }} />
-                <List>
-                  <ListItem disablePadding>
-                    <ListItemButton onClick={logout}>
-                      <ListItemIcon sx={{ color: "inherit" }}>
-                        <LogoutIcon />
-                      </ListItemIcon>
-                      <ListItemText primary="Logout" />
-                    </ListItemButton>
-                  </ListItem>
-                </List>
-              </>
-            )}
             <Version />
           </Drawer>
 
@@ -222,6 +207,11 @@ export default function App() {
                 <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
                   {getPageTitle()}
                 </Typography>
+                {authRequired && (
+                  <IconButton color="inherit" onClick={logout} title="Logout">
+                    <LogoutIcon />
+                  </IconButton>
+                )}
               </Toolbar>
             </AppBar>
 

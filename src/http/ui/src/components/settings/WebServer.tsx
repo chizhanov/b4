@@ -67,6 +67,7 @@ export const WebServerSettings = ({
           }
           placeholder=""
           helperText="Leave both empty to disable authentication"
+          autoComplete="new-password"
         />
         <B4TextField
           label="Password"
@@ -77,6 +78,7 @@ export const WebServerSettings = ({
           }
           placeholder=""
           helperText="Basic auth password for the web UI"
+          autoComplete="new-password"
         />
       </B4FormGroup>
       {(config.system.web_server.username ||
