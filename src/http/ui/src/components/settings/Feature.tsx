@@ -83,61 +83,27 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
           }
           description="Enable NAT masquerade for container/gateway setups"
         />
-        {config.system.tables.masquerade && (
-          <B4FormGroup label="Masquerade Interface" columns={1}>
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Select output interface for masquerade (empty = all interfaces)
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {(config.available_ifaces ?? []).map((iface) => {
-                  const isSelected =
-                    config.system.tables.masquerade_interface === iface;
-                  return (
-                    <B4Badge
-                      key={iface}
-                      label={iface}
-                      onClick={() =>
-                        onChange(
-                          "system.tables.masquerade_interface",
-                          isSelected ? "" : iface
-                        )
-                      }
-                      variant={isSelected ? "filled" : "outlined"}
-                      color={isSelected ? "primary" : "primary"}
-                    />
-                  );
-                })}
-              </Box>
-              {(config.available_ifaces ?? []).length === 0 && (
-                <B4Alert severity="warning" sx={{ mt: 2 }}>
-                  No interfaces detected
-                </B4Alert>
-              )}
-              {!config.system.tables.masquerade_interface && (
-                <B4Alert severity="info" sx={{ mt: 2 }}>
-                  Masquerade will apply to all output interfaces if none is
-                  selected.
-                </B4Alert>
-              )}
-            </Box>
-          </B4FormGroup>
-        )}
-        <B4FormGroup label="Network Interfaces" columns={1}>
+      </B4FormGroup>
+      {config.system.tables.masquerade && (
+        <B4FormGroup label="Masquerade Interface" columns={1}>
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Select interfaces to monitor (empty = all interfaces)
+              Select output interface for masquerade (empty = all interfaces)
             </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               {(config.available_ifaces ?? []).map((iface) => {
-                const isSelected = (config.queue.interfaces || []).includes(
-                  iface
-                );
+                const isSelected =
+                  config.system.tables.masquerade_interface === iface;
                 return (
                   <B4Badge
                     key={iface}
                     label={iface}
-                    onClick={() => handleInterfaceToggle(iface)}
+                    onClick={() =>
+                      onChange(
+                        "system.tables.masquerade_interface",
+                        isSelected ? "" : iface
+                      )
+                    }
                     variant={isSelected ? "filled" : "outlined"}
                     color={isSelected ? "primary" : "primary"}
                   />
@@ -145,17 +111,51 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
               })}
             </Box>
             {(config.available_ifaces ?? []).length === 0 && (
-              <B4Alert severity="warning" sx={{ mt: 2 }}>
+              <B4Alert severity="warning" sx={{ mt: 1 }}>
                 No interfaces detected
               </B4Alert>
             )}
-            {config.queue.interfaces?.length === 0 && (
-              <B4Alert severity="info" sx={{ mt: 2 }}>
-                B4 will listen on all available interfaces if none are selected.
+            {!config.system.tables.masquerade_interface && (
+              <B4Alert severity="info" sx={{ mt: 1 }}>
+                Masquerade will apply to all output interfaces if none is
+                selected.
               </B4Alert>
             )}
           </Box>
         </B4FormGroup>
+      )}
+      <B4FormGroup label="Network Interfaces" columns={1}>
+        <Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Select interfaces to monitor (empty = all interfaces)
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {(config.available_ifaces ?? []).map((iface) => {
+              const isSelected = (config.queue.interfaces || []).includes(
+                iface
+              );
+              return (
+                <B4Badge
+                  key={iface}
+                  label={iface}
+                  onClick={() => handleInterfaceToggle(iface)}
+                  variant={isSelected ? "filled" : "outlined"}
+                  color={isSelected ? "primary" : "primary"}
+                />
+              );
+            })}
+          </Box>
+          {(config.available_ifaces ?? []).length === 0 && (
+            <B4Alert severity="warning" sx={{ mt: 1 }}>
+              No interfaces detected
+            </B4Alert>
+          )}
+          {config.queue.interfaces?.length === 0 && (
+            <B4Alert severity="info" sx={{ mt: 1 }}>
+              B4 will listen on all available interfaces if none are selected.
+            </B4Alert>
+          )}
+        </Box>
       </B4FormGroup>
     </B4Section>
   );
