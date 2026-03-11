@@ -58,6 +58,27 @@ export const WebServerSettings = ({
           helperText="Path to TLS private key file (empty = HTTP mode)"
         />
       </B4FormGroup>
+      <B4FormGroup label="Authentication" columns={2}>
+        <B4TextField
+          label="Username"
+          value={config.system.web_server.username || ""}
+          onChange={(e) =>
+            onChange("system.web_server.username", e.target.value)
+          }
+          placeholder=""
+          helperText="Leave both empty to disable authentication"
+        />
+        <B4TextField
+          label="Password"
+          type="password"
+          value={config.system.web_server.password || ""}
+          onChange={(e) =>
+            onChange("system.web_server.password", e.target.value)
+          }
+          placeholder=""
+          helperText="Basic auth password for the web UI"
+        />
+      </B4FormGroup>
     </B4Section>
   );
 };
