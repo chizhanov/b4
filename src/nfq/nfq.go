@@ -79,11 +79,15 @@ func (w *Worker) Start() error {
 	}
 	w.q = q
 
-	if err := pfBind(q.Con, syscall.AF_INET); err != nil {
-		log.Warnf("nfqueue PF_BIND AF_INET: %v", err)
+	if cfg.Queue.IPv4Enabled {
+		if err := pfBind(q.Con, syscall.AF_INET); err != nil {
+			log.Warnf("nfqueue PF_BIND AF_INET: %v", err)
+		}
 	}
-	if err := pfBind(q.Con, syscall.AF_INET6); err != nil {
-		log.Warnf("nfqueue PF_BIND AF_INET6: %v", err)
+	if cfg.Queue.IPv6Enabled {
+		if err := pfBind(q.Con, syscall.AF_INET6); err != nil {
+			log.Warnf("nfqueue PF_BIND AF_INET6: %v", err)
+		}
 	}
 
 	w.wg.Add(1)
