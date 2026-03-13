@@ -7,6 +7,7 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface TcpGeneralProps {
   config: B4SetConfig;
@@ -18,16 +19,17 @@ interface TcpGeneralProps {
 }
 
 export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
+  const { t } = useTranslation();
   const dup = config.tcp.duplicate ?? { enabled: false, count: 3 };
 
   return (
     <>
       {/* Basic TCP Settings */}
-      <B4FormHeader label="Limits & Timing" />
+      <B4FormHeader label={t("sets.tcp.general.limitsTiming")} />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
-            label="Connection Packets Limit"
+            label={t("sets.tcp.general.connPacketsLimit")}
             value={config.tcp.conn_bytes_limit}
             onChange={(value: number) =>
               onChange("tcp.conn_bytes_limit", value)
@@ -35,12 +37,12 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             min={1}
             max={queue.tcp_conn_bytes_limit}
             step={1}
-            helperText={`Max: ${queue.tcp_conn_bytes_limit} (system limit)`}
+            helperText={t("sets.tcp.general.connPacketsMax", { max: queue.tcp_conn_bytes_limit })}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4RangeSlider
-            label="Segment 2 Delay"
+            label={t("sets.tcp.general.seg2delay")}
             value={[
               config.tcp.seg2delay,
               config.tcp.seg2delay_max || config.tcp.seg2delay,
@@ -53,17 +55,17 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             max={1000}
             step={10}
             valueSuffix=" ms"
-            helperText="Delay between TCP segments. Use a range for random delay per packet."
+            helperText={t("sets.tcp.general.seg2delayHelper")}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4TextField
-            label="Port Filter"
+            label={t("sets.tcp.general.portFilter")}
             value={config.tcp.dport_filter}
             onChange={(e) => onChange("tcp.dport_filter", e.target.value)}
-            placeholder="e.g., 80,5222,8000-9000"
-            helperText="Match specific TCP ports (Telegram, XMPP, etc.) - port 443 is always included"
+            placeholder={t("sets.tcp.general.portFilterPlaceholder")}
+            helperText={t("sets.tcp.general.portFilterHelper")}
           />
         </Grid>
 
@@ -79,11 +81,10 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             label={
               <Box>
                 <Typography variant="body1" fontWeight={500}>
-                  Drop SACK Options
+                  {t("sets.tcp.general.dropSack")}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Strip Selective Acknowledgment from TCP headers to confuse
-                  stateful DPI
+                  {t("sets.tcp.general.dropSackDesc")}
                 </Typography>
               </Box>
             }
@@ -92,13 +93,10 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       </Grid>
 
       {/* Packet Duplication */}
-      <B4FormHeader label="Packet Duplication" />
+      <B4FormHeader label={t("sets.tcp.general.packetDuplication")} />
       <Grid container spacing={3}>
         <B4Alert>
-          Some ISPs throttle by randomly dropping outgoing packets to specific
-          IP ranges (e.g. Telegram subnets). Duplication sends multiple copies
-          of each packet. When enabled, all other DPI evasion is bypassed for
-          this set. Applies to all configured TCP ports.
+          {t("sets.tcp.general.dupAlert")}
         </B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel
@@ -114,10 +112,10 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             label={
               <Box>
                 <Typography variant="body1" fontWeight={500}>
-                  Enable Packet Duplication
+                  {t("sets.tcp.general.dupEnable")}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Drop original packet and send multiple copies via raw socket
+                  {t("sets.tcp.general.dupEnableDesc")}
                 </Typography>
               </Box>
             }
@@ -126,13 +124,13 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
         {dup.enabled && (
           <Grid size={{ xs: 12, md: 6 }}>
             <B4Slider
-              label="Copy Count"
+              label={t("sets.tcp.general.dupCount")}
               value={dup.count}
               onChange={(value: number) => onChange("tcp.duplicate.count", value)}
               min={1}
               max={10}
               step={1}
-              helperText="Number of packet copies to send (original is dropped)"
+              helperText={t("sets.tcp.general.dupCountHelper")}
             />
           </Grid>
         )}

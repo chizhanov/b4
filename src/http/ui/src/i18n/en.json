@@ -533,6 +533,34 @@
       "previewFailed": "Failed to load category preview"
     },
 
+    "tcp": {
+      "sectionTitle": "TCP Configuration",
+      "sectionDescription": "Configure TCP packet handling and DPI bypass techniques",
+      "tabs": {
+        "general": "General",
+        "splitting": "Splitting",
+        "faking": "Faking"
+      },
+      "general": {
+        "limitsTiming": "Limits & Timing",
+        "connPacketsLimit": "Connection Packets Limit",
+        "connPacketsMax": "Max: {{max}} (system limit)",
+        "seg2delay": "Segment 2 Delay",
+        "seg2delayHelper": "Delay between TCP segments. Use a range for random delay per packet.",
+        "portFilter": "Port Filter",
+        "portFilterPlaceholder": "e.g., 80,5222,8000-9000",
+        "portFilterHelper": "Match specific TCP ports (Telegram, XMPP, etc.) - port 443 is always included",
+        "dropSack": "Drop SACK Options",
+        "dropSackDesc": "Strip Selective Acknowledgment from TCP headers to confuse stateful DPI",
+        "packetDuplication": "Packet Duplication",
+        "dupAlert": "Some ISPs throttle by randomly dropping outgoing packets to specific IP ranges (e.g. Telegram subnets). Duplication sends multiple copies of each packet. When enabled, all other DPI evasion is bypassed for this set. Applies to all configured TCP ports.",
+        "dupEnable": "Enable Packet Duplication",
+        "dupEnableDesc": "Drop original packet and send multiple copies via raw socket",
+        "dupCount": "Copy Count",
+        "dupCountHelper": "Number of packet copies to send (original is dropped)"
+      }
+    },
+
     "editor": {
       "namePlaceholder": "Set name...",
       "newSet": "New Set",

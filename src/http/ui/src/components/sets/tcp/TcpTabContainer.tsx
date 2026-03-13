@@ -6,6 +6,7 @@ import { TcpIcon, FragIcon, FakingIcon, CoreIcon } from "@b4.icons";
 import { TcpGeneral } from "./TcpGeneral";
 import { TcpSplitting } from "./TcpSplitting";
 import { TcpFaking } from "./TcpFaking";
+import { useTranslation } from "react-i18next";
 
 interface TcpTabContainerProps {
   config: B4SetConfig;
@@ -50,12 +51,13 @@ export const TcpTabContainer = ({
   queue,
   onChange,
 }: TcpTabContainerProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TCP_TABS>(TCP_TABS.GENERAL);
 
   return (
     <B4Section
-      title="TCP Configuration"
-      description="Configure TCP packet handling and DPI bypass techniques"
+      title={t("sets.tcp.sectionTitle")}
+      description={t("sets.tcp.sectionDescription")}
       icon={<TcpIcon />}
     >
       <B4Tabs
@@ -64,9 +66,9 @@ export const TcpTabContainer = ({
           setActiveTab(v);
         }}
       >
-        <B4Tab icon={<CoreIcon />} label="General" inline />
-        <B4Tab icon={<FragIcon />} label="Splitting" inline />
-        <B4Tab icon={<FakingIcon />} label="Faking" inline />
+        <B4Tab icon={<CoreIcon />} label={t("sets.tcp.tabs.general")} inline />
+        <B4Tab icon={<FragIcon />} label={t("sets.tcp.tabs.splitting")} inline />
+        <B4Tab icon={<FakingIcon />} label={t("sets.tcp.tabs.faking")} inline />
       </B4Tabs>
 
       <TabPanel value={activeTab} index={TCP_TABS.GENERAL}>
