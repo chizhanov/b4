@@ -13,6 +13,7 @@ import { DeviceActivity } from "./DeviceActivity";
 import { UnmatchedDomains } from "./UnmatchedDomains";
 import { SimpleLineChart } from "./SimpleLineChart";
 import { colors } from "@design";
+import { useTranslation } from "react-i18next";
 import { useDashboardSets } from "@hooks/useDashboardSets";
 import { wsUrl } from "@utils";
 
@@ -251,6 +252,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
 };
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [connected, setConnected] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
@@ -312,7 +314,7 @@ export function DashboardPage() {
       <Container maxWidth={false} sx={{ py: 3 }}>
         <Box sx={{ textAlign: "center", py: 8 }}>
           <LinearProgress sx={{ mb: 2 }} />
-          <Typography>Loading dashboard...</Typography>
+          <Typography>{t("dashboard.loading")}</Typography>
         </Box>
       </Container>
     );
@@ -364,7 +366,7 @@ export function DashboardPage() {
               display: "block",
             }}
           >
-            Connection Rate
+            {t("dashboard.connectionRate")}
           </Typography>
           <SimpleLineChart
             data={metrics.connection_rate}

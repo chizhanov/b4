@@ -336,8 +336,7 @@
       "uploadedSuccess": "Uploaded payload for {{domain}}"
     },
 
-    "ResetDialog": {
-      "title": "Reset Configuration",
+    "ResetDialog": {      "title": "Reset Configuration",
       "subtitle": "Restore default settings",
       "resettingTitle": "Resetting Configuration",
       "pleaseWait": "Please wait...",
@@ -354,6 +353,58 @@
       "successSubtitle": "Default settings restored",
       "failedTitle": "Reset Failed",
       "resetButton": "Reset to Defaults"
+    }
+  },
+
+  "dashboard": {
+    "loading": "Loading dashboard...",
+    "connectionRate": "Connection Rate",
+    "noData": "No data",
+
+    "metrics": {
+      "connections": "Connections",
+      "connPerSec": "conn/s",
+      "bypassed": "Bypassed",
+      "ofTotal": "of total",
+      "packets": "Packets",
+      "pktPerSec": "pkt/s"
+    },
+
+    "health": {
+      "running": "Running",
+      "degraded": "Degraded",
+      "critical": "Critical",
+      "nfqueue": "NFQueue",
+      "firewall": "Firewall",
+      "workers": "Workers",
+      "active": "active",
+      "uptime": "Uptime",
+      "resetStats": "Reset Stats",
+      "resetting": "Resetting...",
+      "resetTitle": "Reset Statistics",
+      "resetConfirm": "Reset all statistics? This will clear all connection counters, device activity, and domain statistics. The service will continue running.",
+      "cancel": "Cancel",
+      "reset": "Reset"
+    },
+
+    "activeSets": {
+      "title": "Active Sets",
+      "targets": "targets"
+    },
+
+    "deviceActivity": {
+      "title": "Device Activity",
+      "domains": "domains",
+      "conn": "conn",
+      "tlsVersion": "TLS Version",
+      "alreadyInSet": "Already in a set",
+      "addToSet": "Add to set"
+    },
+
+    "unmatchedDomains": {
+      "title": "Domains Not In Any Set",
+      "tlsVersion": "TLS Version",
+      "addToSet": "Add to set"
     }
   }
 }

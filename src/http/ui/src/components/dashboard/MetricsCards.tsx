@@ -7,6 +7,7 @@ import {
 import { StatCard } from "./StatCard";
 import { formatNumber } from "@utils";
 import { colors } from "@design";
+import { useTranslation } from "react-i18next";
 import type { Metrics } from "./Page";
 
 interface MetricsCardsProps {
@@ -14,6 +15,7 @@ interface MetricsCardsProps {
 }
 
 export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
+  const { t } = useTranslation();
   const targetRate =
     metrics.total_connections > 0
       ? ((metrics.targeted_connections / metrics.total_connections) * 100).toFixed(1)
@@ -23,9 +25,9 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
         <StatCard
-          title="Connections"
+          title={t("dashboard.metrics.connections")}
           value={formatNumber(metrics.total_connections)}
-          subtitle={`${metrics.current_cps.toFixed(1)} conn/s`}
+          subtitle={`${metrics.current_cps.toFixed(1)} ${t("dashboard.metrics.connPerSec")}`}
           icon={<LanIcon />}
           color={colors.primary}
           variant="outlined"
@@ -34,9 +36,9 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
 
       <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
         <StatCard
-          title="Bypassed"
+          title={t("dashboard.metrics.bypassed")}
           value={formatNumber(metrics.targeted_connections)}
-          subtitle={`${targetRate}% of total`}
+          subtitle={`${targetRate}% ${t("dashboard.metrics.ofTotal")}`}
           icon={<ShieldIcon />}
           color={colors.secondary}
           variant="outlined"
@@ -45,9 +47,9 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
 
       <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
         <StatCard
-          title="Packets"
+          title={t("dashboard.metrics.packets")}
           value={formatNumber(metrics.packets_processed)}
-          subtitle={`${metrics.current_pps.toFixed(1)} pkt/s`}
+          subtitle={`${metrics.current_pps.toFixed(1)} ${t("dashboard.metrics.pktPerSec")}`}
           icon={<StorageIcon />}
           color={colors.tertiary}
           variant="outlined"

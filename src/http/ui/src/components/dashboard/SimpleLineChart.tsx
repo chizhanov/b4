@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import { colors } from "@design";
+import { useTranslation } from "react-i18next";
 
 interface SimpleChartProps {
   data: { timestamp: number; value: number }[];
@@ -35,6 +36,7 @@ export const SimpleLineChart = ({
   height = 200,
   color = colors.secondary,
 }: SimpleChartProps) => {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const prevDataLengthRef = useRef(data.length);
 
@@ -60,7 +62,7 @@ export const SimpleLineChart = ({
 
   if (data.length === 0)
     return (
-      <Typography sx={{ color: colors.text.secondary }}>No data</Typography>
+      <Typography sx={{ color: colors.text.secondary }}>{t("dashboard.noData")}</Typography>
     );
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);

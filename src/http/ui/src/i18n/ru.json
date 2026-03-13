@@ -355,5 +355,57 @@
       "failedTitle": "Ошибка сброса",
       "resetButton": "Сбросить настройки"
     }
+  },
+
+  "dashboard": {
+    "loading": "Загрузка...",
+    "connectionRate": "Скорость соединений",
+    "noData": "Нет данных",
+
+    "metrics": {
+      "connections": "Соединения",
+      "connPerSec": "соед/с",
+      "bypassed": "Обход DPI",
+      "ofTotal": "от общего",
+      "packets": "Пакеты",
+      "pktPerSec": "пак/с"
+    },
+
+    "health": {
+      "running": "Работает",
+      "degraded": "Нестабильно",
+      "critical": "Критично",
+      "nfqueue": "NFQueue",
+      "firewall": "Фаервол",
+      "workers": "Воркеры",
+      "active": "активно",
+      "uptime": "Аптайм",
+      "resetStats": "Сброс статистики",
+      "resetting": "Сброс...",
+      "resetTitle": "Сброс статистики",
+      "resetConfirm": "Сбросить всю статистику? Будут очищены все счётчики соединений, активность устройств и статистика доменов. Сервис продолжит работу.",
+      "cancel": "Отмена",
+      "reset": "Сбросить"
+    },
+
+    "activeSets": {
+      "title": "Активные сеты",
+      "targets": "целей"
+    },
+
+    "deviceActivity": {
+      "title": "Активность устройств",
+      "domains": "доменов",
+      "conn": "соед",
+      "tlsVersion": "Версия TLS",
+      "alreadyInSet": "Уже в сете",
+      "addToSet": "Добавить в сет"
+    },
+
+    "unmatchedDomains": {
+      "title": "Домены не в сетах",
+      "tlsVersion": "Версия TLS",
+      "addToSet": "Добавить в сет"
+    }
   }
 }

@@ -22,6 +22,7 @@ import { formatNumber } from "@utils";
 import { B4SetConfig } from "@models/config";
 import { setsApi } from "@b4.sets";
 import { B4Badge } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface DeviceInfo {
   mac: string;
@@ -46,6 +47,7 @@ export const DeviceActivity = ({
   targetedDomains,
   onRefreshSets,
 }: DeviceActivityProps) => {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -128,7 +130,7 @@ export const DeviceActivity = ({
           display: "block",
         }}
       >
-        Device Activity
+        {t("dashboard.deviceActivity.title")}
       </Typography>
       <Stack spacing={1}>
         {sortedDevices.map(({ mac, domains, total, domainCount }) => {
@@ -192,7 +194,7 @@ export const DeviceActivity = ({
                   sx={{ flexShrink: 0 }}
                 >
                   <Chip
-                    label={`${domainCount} domains`}
+                    label={`${domainCount} ${t("dashboard.deviceActivity.domains")}`}
                     size="small"
                     sx={{
                       bgcolor: `${colors.secondary}15`,
@@ -202,7 +204,7 @@ export const DeviceActivity = ({
                     }}
                   />
                   <Chip
-                    label={`${formatNumber(total)} conn`}
+                    label={`${formatNumber(total)} ${t("dashboard.deviceActivity.conn")}`}
                     size="small"
                     sx={{
                       bgcolor: `${colors.primary}15`,
@@ -266,6 +268,7 @@ const DomainRow = ({
   sets,
   onAdded,
 }: DomainRowProps) => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
 
@@ -300,18 +303,18 @@ const DomainRow = ({
         alignItems="center"
         sx={{ minWidth: 0, flex: 1 }}
       >
-        {tls && <B4Badge label={tls} color="secondary" title="TLS Version" />}
+        {tls && <B4Badge label={tls} color="secondary" title={t("dashboard.deviceActivity.tlsVersion")} />}
         <Typography variant="overline">{domain}</Typography>
         <B4Badge label={formatNumber(count)} />
       </Stack>
 
       {isTargeted ? (
-        <Tooltip title="Already in a set">
+        <Tooltip title={t("dashboard.deviceActivity.alreadyInSet")}>
           <CheckIcon sx={{ color: "#4caf50", fontSize: 16, ml: 1 }} />
         </Tooltip>
       ) : (
         <>
-          <Tooltip title="Add to set">
+          <Tooltip title={t("dashboard.deviceActivity.addToSet")}>
             <IconButton
               size="small"
               onClick={(e) => {
