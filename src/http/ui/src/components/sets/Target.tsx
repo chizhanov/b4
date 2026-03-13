@@ -51,6 +51,7 @@ import { useDevices } from "@b4.devices";
 import { colors } from "@design";
 import { SetStats } from "./Manager";
 import { sortDevices } from "@utils";
+import { useTranslation } from "react-i18next";
 
 interface TargetSettingsProps {
   config: B4SetConfig;
@@ -95,6 +96,7 @@ export const TargetSettings = ({
   stats,
   otherSetsTargets,
 }: TargetSettingsProps) => {
+  const { t } = useTranslation();
   const [tabValue, setTabValue] = useState(0);
   const {
     devices,
@@ -357,20 +359,20 @@ export const TargetSettings = ({
     <>
       <Stack spacing={3}>
         <B4Section
-          title="Domain Filtering Configuration"
-          description="Configure domain matching for DPI bypass and blocking"
+          title={t("sets.targets.sectionTitle")}
+          description={t("sets.targets.sectionDescription")}
           icon={<DomainIcon />}
         >
           <Box sx={{ mb: 2, maxWidth: 200 }}>
             <B4Select
-              label="TLS Version Filter"
+              label={t("sets.targets.tlsVersionFilter")}
               value={config.targets.tls ?? ""}
               options={[
-                { value: "", label: "Any" },
+                { value: "", label: t("sets.targets.tlsAny") },
                 { value: "1.2", label: "TLS 1.2" },
                 { value: "1.3", label: "TLS 1.3" },
               ]}
-              helperText="Match only specific TLS version"
+              helperText={t("sets.targets.tlsHelperText")}
               onChange={(e) =>
                 onChange("targets.tls", e.target.value as string)
               }
@@ -381,14 +383,14 @@ export const TargetSettings = ({
               value={tabValue}
               onChange={(_, newValue: number) => setTabValue(newValue)}
             >
-              <B4Tab icon={<DomainIcon />} label="Bypass Domains" inline />
-              <B4Tab icon={<IpIcon />} label="Bypass IPs" inline />
+              <B4Tab icon={<DomainIcon />} label={t("sets.targets.tabs.domains")} inline />
+              <B4Tab icon={<IpIcon />} label={t("sets.targets.tabs.ips")} inline />
               <B4Tab
                 icon={<DeviceIcon />}
                 label={
                   selectedSourceDevices.length > 0
-                    ? `Source Devices (${selectedSourceDevices.length})`
-                    : "Source Devices"
+                    ? `${t("sets.targets.tabs.sourceDevices")} (${selectedSourceDevices.length})`
+                    : t("sets.targets.tabs.sourceDevices")
                 }
                 inline
               />
@@ -398,8 +400,7 @@ export const TargetSettings = ({
           {/* DPI Bypass Tab */}
           <TabPanel value={tabValue} index={0}>
             <B4Alert severity="info" sx={{ m: 0 }}>
-              Domains in this list will use DPI bypass techniques
-              (fragmentation, faking) when matched.
+              {t("sets.targets.domainAlert")}
             </B4Alert>
 
             <Grid container spacing={2}>
@@ -415,8 +416,8 @@ export const TargetSettings = ({
                       mb: 2,
                     }}
                   >
-                    <DomainIcon /> Manual Bypass Domains
-                    <Tooltip title="Add specific domains to bypass DPI.">
+                    <DomainIcon /> {t("sets.targets.manualDomains")}
+                    <Tooltip title={t("sets.targets.manualDomainsTooltip")}>
                       <InfoIcon fontSize="small" color="action" />
                     </Tooltip>
                   </Typography>
@@ -424,7 +425,7 @@ export const TargetSettings = ({
                     sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}
                   >
                     <B4TextField
-                      label="Add Bypass Domain"
+                      label={t("sets.targets.addDomainLabel")}
                       value={newBypassDomain}
                       onChange={(e) => {
                         setNewBypassDomain(e.target.value);
@@ -440,8 +441,8 @@ export const TargetSettings = ({
                           handleAddBypassDomain();
                         }
                       }}
-                      helperText="e.g., youtube.com, google.com"
-                      placeholder="example.com"
+                      helperText={t("sets.targets.addDomainHelper")}
+                      placeholder={t("sets.targets.addDomainPlaceholder")}
                     />
                     <B4PlusButton
                       onClick={handleAddBypassDomain}
@@ -450,7 +451,7 @@ export const TargetSettings = ({
                   </Box>
                   {domainDuplicateWarning && (
                     <B4Alert severity="warning" sx={{ mt: 1 }}>
-                      Already exists in other sets: {domainDuplicateWarning}
+                      {t("sets.targets.duplicateWarning")} {domainDuplicateWarning}
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
@@ -464,14 +465,14 @@ export const TargetSettings = ({
                         }}
                       >
                         <Typography variant="subtitle2">
-                          Active manually added domains
+                          {t("sets.targets.activeDomains")}
                         </Typography>
                         <Button
                           size="small"
                           onClick={() => handleClearAll("targets.sni_domains")}
                           startIcon={<ClearIcon />}
                         >
-                          Clear All
+                          {t("core.clearAll")}
                         </Button>
                       </Box>
                     )}
@@ -480,7 +481,7 @@ export const TargetSettings = ({
                       getKey={(d) => d}
                       getLabel={(d) => d}
                       onDelete={(d) => handleRemove("sni_domains", d)}
-                      emptyMessage="No bypass domains added"
+                      emptyMessage={t("sets.targets.noDomainsAdded")}
                       showEmpty
                     />
                   </Box>
@@ -500,21 +501,21 @@ export const TargetSettings = ({
                         mb: 2,
                       }}
                     >
-                      <CategoryIcon /> Bypass GeoSite Categories
-                      <Tooltip title="Load predefined domain lists from GeoSite database for DPI bypass">
+                      <CategoryIcon /> {t("sets.targets.geositeCategories")}
+                      <Tooltip title={t("sets.targets.geositeCatTooltip")}>
                         <InfoIcon fontSize="small" color="action" />
                       </Tooltip>
                     </Typography>
 
                     <SettingAutocomplete
-                      label="Add Bypass Category"
+                      label={t("sets.targets.addGeositeLabel")}
                       value={newBypassCategory}
                       options={availableCategories}
                       onChange={setNewBypassCategory}
                       onSelect={handleAddBypassCategory}
                       loading={loadingCategories}
-                      placeholder="Select or type category"
-                      helperText={`${availableCategories.length} categories available`}
+                      placeholder={t("sets.targets.addGeositePlaceholder")}
+                      helperText={t("sets.targets.geositeCatAvailable", { count: availableCategories.length })}
                     />
 
                     <Box sx={{ mt: 2 }}>
@@ -528,14 +529,14 @@ export const TargetSettings = ({
                           }}
                         >
                           <Typography variant="subtitle2">
-                            Active Bypass Categories
+                            {t("sets.targets.activeGeositeCategories")}
                           </Typography>
                           <Button
                             size="small"
                             onClick={() => handleClearAll("targets.geosite_categories")}
                             startIcon={<ClearIcon />}
                           >
-                            Clear All
+                            {t("core.clearAll")}
                           </Button>
                         </Box>
                       )}
@@ -561,8 +562,7 @@ export const TargetSettings = ({
           {/* Bypass IPs Tab */}
           <TabPanel value={tabValue} index={1}>
             <B4Alert>
-              IP ranges in these categories will use DPI bypass techniques
-              (fragmentation, faking) when matched.
+              {t("sets.targets.ipAlert")}
             </B4Alert>
 
             <Grid container spacing={2}>
@@ -578,8 +578,8 @@ export const TargetSettings = ({
                       mb: 2,
                     }}
                   >
-                    <IpIcon /> Manual Bypass IPs
-                    <Tooltip title="Add specific ip/cidr to bypass DPI.">
+                    <IpIcon /> {t("sets.targets.manualIps")}
+                    <Tooltip title={t("sets.targets.manualIpsTooltip")}>
                       <InfoIcon fontSize="small" color="action" />
                     </Tooltip>
                   </Typography>
@@ -587,7 +587,7 @@ export const TargetSettings = ({
                     sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}
                   >
                     <B4TextField
-                      label="Add Bypass IP/CIDR"
+                      label={t("sets.targets.addIpLabel")}
                       value={newBypassIP}
                       onChange={(e) => {
                         setNewBypassIP(e.target.value);
@@ -603,8 +603,8 @@ export const TargetSettings = ({
                           handleAddBypassIP();
                         }
                       }}
-                      helperText="e.g. 192.168.1.1, 10.0.0.0/8"
-                      placeholder="192.168.1.1"
+                      helperText={t("sets.targets.addIpHelper")}
+                      placeholder={t("sets.targets.addIpPlaceholder")}
                     />
                     <B4PlusButton
                       onClick={handleAddBypassIP}
@@ -613,7 +613,7 @@ export const TargetSettings = ({
                   </Box>
                   {ipDuplicateWarning && (
                     <B4Alert severity="warning" sx={{ mt: 1 }}>
-                      Already exists in other sets: {ipDuplicateWarning}
+                      {t("sets.targets.duplicateWarning")} {ipDuplicateWarning}
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
@@ -627,14 +627,14 @@ export const TargetSettings = ({
                         }}
                       >
                         <Typography variant="subtitle2">
-                          Active manually added IPs
+                          {t("sets.targets.activeIps")}
                         </Typography>
                         <Button
                           size="small"
                           onClick={() => handleClearAll("targets.ip")}
                           startIcon={<ClearIcon />}
                         >
-                          Clear All
+                          {t("core.clearAll")}
                         </Button>
                       </Box>
                     )}
@@ -643,7 +643,7 @@ export const TargetSettings = ({
                       getKey={(ip) => ip}
                       getLabel={(ip) => ip}
                       onDelete={(ip) => handleRemove("ip", ip)}
-                      emptyMessage="No bypass ip added"
+                      emptyMessage={t("sets.targets.noIpsAdded")}
                       showEmpty
                       maxHeight={200}
                     />
@@ -664,21 +664,21 @@ export const TargetSettings = ({
                         mb: 2,
                       }}
                     >
-                      <CategoryIcon /> Bypass GeoIP Categories
-                      <Tooltip title="Load predefined IP lists from GeoIP database for DPI bypass">
+                      <CategoryIcon /> {t("sets.targets.geoipCategories")}
+                      <Tooltip title={t("sets.targets.geoipCatTooltip")}>
                         <InfoIcon fontSize="small" color="action" />
                       </Tooltip>
                     </Typography>
 
                     <SettingAutocomplete
-                      label="Add Bypass GeoIP Category"
+                      label={t("sets.targets.addGeoipLabel")}
                       value={newBypassGeoIPCategory}
                       options={availableGeoIPCategories}
                       onChange={setNewBypassGeoIPCategory}
                       onSelect={handleAddBypassGeoIPCategory}
                       loading={loadingGeoIPCategories}
-                      placeholder="Select or type GeoIP category"
-                      helperText={`${availableGeoIPCategories.length} GeoIP categories available`}
+                      placeholder={t("sets.targets.addGeoipPlaceholder")}
+                      helperText={t("sets.targets.geoipCatAvailable", { count: availableGeoIPCategories.length })}
                     />
 
                     <Box sx={{ mt: 2 }}>
@@ -692,14 +692,14 @@ export const TargetSettings = ({
                           }}
                         >
                           <Typography variant="subtitle2">
-                            Active Bypass GeoIP Categories
+                            {t("sets.targets.activeGeoipCategories")}
                           </Typography>
                           <Button
                             size="small"
                             onClick={() => handleClearAll("targets.geoip_categories")}
                             startIcon={<ClearIcon />}
                           >
-                            Clear All
+                            {t("core.clearAll")}
                           </Button>
                         </Box>
                       )}
@@ -724,9 +724,7 @@ export const TargetSettings = ({
           {/* Source Devices Tab */}
           <TabPanel value={tabValue} index={2}>
             <B4Alert severity="info">
-              Restrict this set to specific source devices. When devices are
-              selected, this set will only apply to traffic from those devices.
-              Device-specific sets take priority over general sets.
+              {t("sets.targets.deviceAlert")}
             </B4Alert>
 
             {devicesAvailable ? (
@@ -742,19 +740,19 @@ export const TargetSettings = ({
                     }}
                   >
                     <Typography variant="subtitle2">
-                      Available Devices
+                      {t("sets.targets.availableDevices")}
                       {selectedSourceDevices.length > 0 && (
                         <Typography
                           component="span"
                           variant="caption"
                           sx={{ ml: 1, color: colors.secondary }}
                         >
-                          ({selectedSourceDevices.length} selected)
+                          ({t("sets.targets.selectedCount", { count: selectedSourceDevices.length })})
                         </Typography>
                       )}
                     </Typography>
                     <B4TooltipButton
-                      title="Refresh devices"
+                      title={t("sets.targets.refreshDevices")}
                       icon={
                         devicesLoading ? (
                           <CircularProgress size={18} />
@@ -803,7 +801,7 @@ export const TargetSettings = ({
                               }
                             />
                           </TableCell>
-                          {["MAC Address", "IP", "Name"].map((label) => (
+                          {[t("sets.targets.macAddress"), t("sets.targets.ip"), t("sets.targets.name")].map((label) => (
                             <TableCell
                               key={label}
                               sx={{
@@ -821,8 +819,8 @@ export const TargetSettings = ({
                           <TableRow>
                             <TableCell colSpan={4} align="center">
                               {devicesLoading
-                                ? "Loading devices..."
-                                : "No devices found"}
+                                ? t("sets.targets.loadingDevices")
+                                : t("sets.targets.noDevicesFound")}
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -868,7 +866,7 @@ export const TargetSettings = ({
                                     device.alias ||
                                     device.vendor ||
                                     device.hostname ||
-                                    "Unknown"
+                                    t("core.unknown")
                                   }
                                   color="primary"
                                   variant={
@@ -892,7 +890,7 @@ export const TargetSettings = ({
                         onClick={() => handleClearAll("targets.source_devices")}
                         startIcon={<ClearIcon />}
                       >
-                        Clear All
+                        {t("core.clearAll")}
                       </Button>
                     </Box>
                   )}
@@ -901,8 +899,7 @@ export const TargetSettings = ({
             ) : (
               <Box sx={{ mt: 2 }}>
                 <B4Alert severity="warning">
-                  ARP table not available. Device discovery is unavailable.
-                  Source device filtering requires a working ARP table.
+                  {t("sets.targets.arpUnavailable")}
                 </B4Alert>
               </Box>
             )}
@@ -913,7 +910,7 @@ export const TargetSettings = ({
       {/* Preview Dialog */}
       <B4Dialog
         title={`${previewDialog.category.toUpperCase()}`}
-        subtitle="Category Preview"
+        subtitle={t("sets.targets.previewSubtitle")}
         icon={<CategoryIcon />}
         open={previewDialog.open}
         onClose={() =>
@@ -926,7 +923,7 @@ export const TargetSettings = ({
               setPreviewDialog({ open: false, category: "", loading: false })
             }
           >
-            Close
+            {t("core.close")}
           </Button>
         }
       >
@@ -939,10 +936,10 @@ export const TargetSettings = ({
         ) : previewDialog.data ? (
           <>
             <B4Alert severity="info" sx={{ mb: 2 }}>
-              Total domains in category: {previewDialog.data.total_domains}
+              {t("sets.targets.previewTotal", { count: previewDialog.data.total_domains })}
               {previewDialog.data.total_domains >
                 previewDialog.data.preview_count &&
-                ` (showing first ${previewDialog.data.preview_count})`}
+                ` (${t("sets.targets.previewShowing", { count: previewDialog.data.preview_count })})`}
             </B4Alert>
             <List dense sx={{ maxHeight: 600, overflow: "auto" }}>
               {previewDialog.data.preview.map((domain) => (
@@ -953,7 +950,7 @@ export const TargetSettings = ({
             </List>
           </>
         ) : (
-          <B4Alert severity="error">Failed to load category preview</B4Alert>
+          <B4Alert severity="error">{t("sets.targets.previewFailed")}</B4Alert>
         )}
       </B4Dialog>
     </>

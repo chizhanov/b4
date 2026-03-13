@@ -40,6 +40,8 @@
     "addToSet": "Add to set",
     "tlsVersion": "TLS Version",
     "noData": "No data",
+    "clearAll": "Clear All",
+    "unknown": "Unknown",
 
     "nav": {
       "dashboard": "Dashboard",
@@ -466,6 +468,69 @@
       "sniFakingOn": "SNI Faking ON",
       "sniFakingOff": "SNI Faking OFF",
       "dnsOff": "DNS OFF"
+    },
+
+    "targets": {
+      "sectionTitle": "Domain Filtering Configuration",
+      "sectionDescription": "Configure domain matching for DPI bypass and blocking",
+      "tlsVersionFilter": "TLS Version Filter",
+      "tlsAny": "Any",
+      "tlsHelperText": "Match only specific TLS version",
+
+      "tabs": {
+        "domains": "Bypass Domains",
+        "ips": "Bypass IPs",
+        "sourceDevices": "Source Devices"
+      },
+
+      "domainAlert": "Domains in this list will use DPI bypass techniques (fragmentation, faking) when matched.",
+      "manualDomains": "Manual Bypass Domains",
+      "manualDomainsTooltip": "Add specific domains to bypass DPI.",
+      "addDomainLabel": "Add Bypass Domain",
+      "addDomainHelper": "e.g., youtube.com, google.com",
+      "addDomainPlaceholder": "example.com",
+      "duplicateWarning": "Already exists in other sets:",
+      "activeDomains": "Active manually added domains",
+      "noDomainsAdded": "No bypass domains added",
+
+      "geositeCategories": "Bypass GeoSite Categories",
+      "geositeCatTooltip": "Load predefined domain lists from GeoSite database for DPI bypass",
+      "addGeositeLabel": "Add Bypass Category",
+      "addGeositePlaceholder": "Select or type category",
+      "geositeCatAvailable": "{{count}} categories available",
+      "activeGeositeCategories": "Active Bypass Categories",
+
+      "ipAlert": "IP ranges in these categories will use DPI bypass techniques (fragmentation, faking) when matched.",
+      "manualIps": "Manual Bypass IPs",
+      "manualIpsTooltip": "Add specific ip/cidr to bypass DPI.",
+      "addIpLabel": "Add Bypass IP/CIDR",
+      "addIpHelper": "e.g. 192.168.1.1, 10.0.0.0/8",
+      "addIpPlaceholder": "192.168.1.1",
+      "activeIps": "Active manually added IPs",
+      "noIpsAdded": "No bypass IP added",
+
+      "geoipCategories": "Bypass GeoIP Categories",
+      "geoipCatTooltip": "Load predefined IP lists from GeoIP database for DPI bypass",
+      "addGeoipLabel": "Add Bypass GeoIP Category",
+      "addGeoipPlaceholder": "Select or type GeoIP category",
+      "geoipCatAvailable": "{{count}} GeoIP categories available",
+      "activeGeoipCategories": "Active Bypass GeoIP Categories",
+
+      "deviceAlert": "Restrict this set to specific source devices. When devices are selected, this set will only apply to traffic from those devices. Device-specific sets take priority over general sets.",
+      "availableDevices": "Available Devices",
+      "selectedCount": "{{count}} selected",
+      "refreshDevices": "Refresh devices",
+      "loadingDevices": "Loading devices...",
+      "noDevicesFound": "No devices found",
+      "macAddress": "MAC Address",
+      "ip": "IP",
+      "name": "Name",
+      "arpUnavailable": "ARP table not available. Device discovery is unavailable. Source device filtering requires a working ARP table.",
+
+      "previewSubtitle": "Category Preview",
+      "previewTotal": "Total domains in category: {{count}}",
+      "previewShowing": "showing first {{count}}",
+      "previewFailed": "Failed to load category preview"
     },
 
     "editor": {
