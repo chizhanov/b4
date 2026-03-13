@@ -6,6 +6,7 @@ import {
 } from "@mui/icons-material";
 import { colors } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
+import { useTranslation } from "react-i18next";
 import type { Metrics } from "./Page";
 
 interface HealthBannerProps {
@@ -32,25 +33,24 @@ function deriveHealth(metrics: Metrics, connected: boolean): HealthLevel {
   return "healthy";
 }
 
-const healthConfig = new Map<HealthLevel, { color: string; label: string }>([
-  ["healthy", { color: "#4caf50", label: "Running" }],
-  ["degraded", { color: "#ff9800", label: "Degraded" }],
-  ["critical", { color: "#f44336", label: "Critical" }],
-]);
+const healthColors: Record<HealthLevel, string> = {
+  healthy: "#4caf50",
+  degraded: "#ff9800",
+  critical: "#f44336",
+};
 
 export const HealthBanner = ({
   metrics,
   connected,
   version,
 }: HealthBannerProps) => {
+  const { t } = useTranslation();
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   const health = deriveHealth(metrics, connected);
-  const config = healthConfig.get(health) ?? {
-    color: "#f44336",
-    label: "Critical",
-  };
+  const healthColor = healthColors[health] ?? "#f44336";
+  const healthLabel = t(`dashboard.health.${health === "healthy" ? "running" : health}`);
   const activeWorkers = metrics.worker_status.filter(
     (w) => w.status === "active",
   ).length;
@@ -93,20 +93,20 @@ export const HealthBanner = ({
           useFlexGap
         >
           <Stack direction="row" spacing={0.5} alignItems="center">
-            <CircleIcon sx={{ fontSize: 10, color: config.color }} />
+            <CircleIcon sx={{ fontSize: 10, color: healthColor }} />
             <Typography
               variant="body2"
               sx={{ color: colors.text.primary, fontWeight: 600 }}
             >
-              b4 {config.label}
+              b4 {healthLabel}
             </Typography>
           </Stack>
 
           <Chip
-            label={`NFQueue: ${metrics.nfqueue_status}`}
+            label={`${t("dashboard.health.nfqueue")}: ${metrics.nfqueue_status}`}
             size="small"
             sx={{
-              bgcolor: `${config.color}15`,
+              bgcolor: `${healthColor}15`,
               color: colors.text.secondary,
               fontSize: "0.75rem",
               height: 24,
@@ -114,10 +114,10 @@ export const HealthBanner = ({
           />
 
           <Chip
-            label={`Firewall: ${metrics.tables_status}`}
+            label={`${t("dashboard.health.firewall")}: ${metrics.tables_status}`}
             size="small"
             sx={{
-              bgcolor: `${config.color}15`,
+              bgcolor: `${healthColor}15`,
               color: colors.text.secondary,
               fontSize: "0.75rem",
               height: 24,
@@ -125,7 +125,7 @@ export const HealthBanner = ({
           />
 
           <Chip
-            label={`Workers: ${activeWorkers}/${totalWorkers} active`}
+            label={`${t("dashboard.health.workers")}: ${activeWorkers}/${totalWorkers} ${t("dashboard.health.active")}`}
             size="small"
             sx={{
               bgcolor:
@@ -139,7 +139,7 @@ export const HealthBanner = ({
           />
 
           <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-            Uptime: {metrics.uptime}
+            {t("dashboard.health.uptime")}: {metrics.uptime}
           </Typography>
 
           {version && (
@@ -156,35 +156,34 @@ export const HealthBanner = ({
           onClick={() => setResetOpen(true)}
           disabled={resetting}
         >
-          {resetting ? "Resetting..." : "Reset Stats"}
+          {resetting ? t("dashboard.health.resetting") : t("dashboard.health.resetStats")}
         </Button>
       </Box>
 
       <B4Dialog
         open={resetOpen}
         onClose={() => setResetOpen(false)}
-        title="Reset Statistics"
+        title={t("dashboard.health.resetTitle")}
         actions={
           <Stack direction="row" spacing={1}>
             <Button
               onClick={() => setResetOpen(false)}
               sx={{ color: colors.text.secondary }}
             >
-              Cancel
+              {t("core.cancel")}
             </Button>
             <Button
               onClick={() => void handleReset()}
               variant="contained"
               color="warning"
             >
-              Reset
+              {t("dashboard.health.reset")}
             </Button>
           </Stack>
         }
       >
         <Typography sx={{ color: colors.text.primary, mt: 1 }}>
-          Reset all statistics? This will clear all connection counters, device
-          activity, and domain statistics. The service will continue running.
+          {t("dashboard.health.resetConfirm")}
         </Typography>
       </B4Dialog>
     </>

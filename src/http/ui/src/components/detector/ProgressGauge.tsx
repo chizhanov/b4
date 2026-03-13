@@ -4,7 +4,8 @@ import { CheckCircleIcon, ErrorIcon } from "@b4.icons";
 import { colors } from "@design";
 import { B4Badge } from "@b4.elements";
 import type { DetectorTestType, DetectorSuite } from "@models/detector";
-import { testNames, statusColors } from "./constants";
+import { getTestName, statusColors } from "./constants";
+import { useTranslation } from "react-i18next";
 
 interface ProgressGaugeProps {
   progress: number;
@@ -36,12 +37,10 @@ function getStepState(
 
 function RadialGauge({
   progress,
-  completedChecks,
-  totalChecks,
+  checksLabel,
 }: {
   progress: number;
-  completedChecks: number;
-  totalChecks: number;
+  checksLabel: string;
 }) {
   const offset = CIRCUMFERENCE - (progress / 100) * CIRCUMFERENCE;
 
@@ -94,7 +93,7 @@ function RadialGauge({
           fontSize="11"
           fontFamily="inherit"
         >
-          {completedChecks}/{totalChecks} checks
+          {checksLabel}
         </text>
       </svg>
     </Box>
@@ -104,9 +103,11 @@ function RadialGauge({
 function StepIndicator({
   test,
   state,
+  label,
 }: {
   test: DetectorTestType;
   state: "completed" | "running" | "failed" | "pending";
+  label: string;
 }) {
   const bgMap = {
     completed: `${statusColors.ok}33`,
@@ -197,7 +198,7 @@ function StepIndicator({
           fontWeight: state === "running" ? 600 : 400,
         }}
       >
-        {testNames[test]}
+        {label}
       </Typography>
     </Stack>
   );
@@ -231,6 +232,8 @@ export function ProgressGauge({
   tests,
   suite,
 }: ProgressGaugeProps) {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
@@ -245,8 +248,7 @@ export function ProgressGauge({
     >
       <RadialGauge
         progress={progress}
-        completedChecks={completedChecks}
-        totalChecks={totalChecks}
+        checksLabel={t("detector.progress.checks", { completed: completedChecks, total: totalChecks })}
       />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -260,11 +262,11 @@ export function ProgressGauge({
                 letterSpacing: "0.5px",
               }}
             >
-              Currently running
+              {t("detector.progress.currentlyRunning")}
             </Typography>
             <Box sx={{ mt: 0.5 }}>
               <B4Badge
-                label={testNames[currentTest]}
+                label={getTestName(t, currentTest)}
                 size="small"
                 color="primary"
               />
@@ -299,7 +301,7 @@ export function ProgressGauge({
                   flex: i < tests.length - 1 ? 1 : "none",
                 }}
               >
-                <StepIndicator test={test} state={state} />
+                <StepIndicator test={test} state={state} label={getTestName(t, test)} />
                 {i < tests.length - 1 && <Connector state={connectorState} />}
               </Box>
             );

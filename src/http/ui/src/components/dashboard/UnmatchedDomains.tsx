@@ -15,6 +15,7 @@ import { formatNumber } from "@utils";
 import { B4SetConfig } from "@models/config";
 import { setsApi } from "@b4.sets";
 import { B4Badge } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface UnmatchedDomainsProps {
   topDomains: Record<string, number>;
@@ -31,6 +32,7 @@ export const UnmatchedDomains = ({
   targetedDomains,
   onRefreshSets,
 }: UnmatchedDomainsProps) => {
+  const { t } = useTranslation();
   const isDomainTargeted = (domain: string): boolean => {
     if (targetedDomains.has(domain)) return true;
     const parts = domain.split(".");
@@ -69,7 +71,7 @@ export const UnmatchedDomains = ({
           display: "block",
         }}
       >
-        Domains Not In Any Set
+        {t("dashboard.unmatchedDomains.title")}
       </Typography>
       <Stack spacing={0.25}>
         {unmatched.map(([domain, count]) => (
@@ -102,6 +104,7 @@ const UnmatchedRow = ({
   sets,
   onAdded,
 }: UnmatchedRowProps) => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
 
@@ -136,12 +139,12 @@ const UnmatchedRow = ({
         alignItems="center"
         sx={{ minWidth: 0, flex: 1 }}
       >
-        {tls && <B4Badge label={tls} color="secondary" title="TLS Version" />}
+        {tls && <B4Badge label={tls} color="secondary" title={t("core.tlsVersion")} />}
         <Typography variant="overline">{domain}</Typography>
         <B4Badge label={formatNumber(count)} />
       </Stack>
 
-      <Tooltip title="Add to set">
+      <Tooltip title={t("core.addToSet")}>
         <IconButton
           size="small"
           onClick={(e) => {

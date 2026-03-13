@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation, Trans } from "react-i18next";
 import {
   StartIcon,
   StopIcon,
@@ -39,24 +40,7 @@ import { DNSResults } from "./results/DNSResults";
 import { DomainsResults } from "./results/DomainsResults";
 import { TCPResults } from "./results/TCPResults";
 import { SNIResults } from "./results/SNIResults";
-import { testNames, statusColors } from "./constants";
-
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function getStatusLabel(status: string): string {
-  if (status === "complete") return "Complete";
-  if (status === "canceled") return "Canceled";
-  return "Failed";
-}
+import { getTestName, statusColors } from "./constants";
 
 function getHistoryStatusColor(entry: DetectorHistoryEntry): string {
   if (entry.status === "canceled") return statusColors.warning;
@@ -72,40 +56,8 @@ function getHistoryStatusColor(entry: DetectorHistoryEntry): string {
   return hasIssues ? statusColors.error : statusColors.ok;
 }
 
-function getHistorySummary(entry: DetectorHistoryEntry): string {
-  const parts: string[] = [];
-
-  if (entry.dns_result) {
-    const bad =
-      entry.dns_result.spoof_count + entry.dns_result.intercept_count;
-    parts.push(bad > 0 ? `DNS: ${bad} issues` : "DNS: OK");
-  }
-  if (entry.domains_result) {
-    parts.push(
-      entry.domains_result.blocked_count > 0
-        ? `Domains: ${entry.domains_result.blocked_count} blocked`
-        : "Domains: OK",
-    );
-  }
-  if (entry.tcp_result) {
-    parts.push(
-      entry.tcp_result.detected_count > 0
-        ? `TSPU: ${entry.tcp_result.detected_count} detected`
-        : "TSPU: Clean",
-    );
-  }
-  if (entry.sni_result) {
-    parts.push(
-      entry.sni_result.found_count > 0
-        ? `SNI: ${entry.sni_result.found_count} found`
-        : "SNI: None",
-    );
-  }
-
-  return parts.join(" / ");
-}
-
 export const DetectorRunner = () => {
+  const { t } = useTranslation();
   const {
     running,
     suiteId,
@@ -172,18 +124,69 @@ export const DetectorRunner = () => {
       suite.tcp_result ||
       suite.sni_result);
 
+  function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("core.timeAgo.justNow");
+    const diff = Date.now() - date.getTime();
+    if (diff < 0) return t("core.timeAgo.justNow");
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return t("core.timeAgo.justNow");
+    if (minutes < 60) return t("core.timeAgo.minutesAgo", { count: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t("core.timeAgo.hoursAgo", { count: hours });
+    const days = Math.floor(hours / 24);
+    return t("core.timeAgo.daysAgo", { count: days });
+  }
+
+  function getStatusLabel(status: string): string {
+    if (status === "complete") return t("detector.history.complete");
+    if (status === "canceled") return t("detector.history.canceled");
+    return t("core.failed");
+  }
+
+  function getHistorySummary(entry: DetectorHistoryEntry): string {
+    const parts: string[] = [];
+
+    if (entry.dns_result) {
+      const bad =
+        entry.dns_result.spoof_count + entry.dns_result.intercept_count;
+      parts.push(bad > 0 ? t("detector.history.dnsIssues", { count: bad }) : t("detector.history.dnsOk"));
+    }
+    if (entry.domains_result) {
+      parts.push(
+        entry.domains_result.blocked_count > 0
+          ? t("detector.history.domainsBlocked", { count: entry.domains_result.blocked_count })
+          : t("detector.history.domainsOk"),
+      );
+    }
+    if (entry.tcp_result) {
+      parts.push(
+        entry.tcp_result.detected_count > 0
+          ? t("detector.history.tspuDetected", { count: entry.tcp_result.detected_count })
+          : t("detector.history.tspuClean"),
+      );
+    }
+    if (entry.sni_result) {
+      parts.push(
+        entry.sni_result.found_count > 0
+          ? t("detector.history.sniFound", { count: entry.sni_result.found_count })
+          : t("detector.history.sniNone"),
+      );
+    }
+
+    return parts.join(" / ");
+  }
+
   return (
     <Stack spacing={3}>
       <B4Section
-        title="TSPU / DPI Detector"
-        description="Detect ISP-level Deep Packet Inspection and blocking"
+        title={t("detector.title")}
+        description={t("detector.description")}
         icon={<SecurityIcon />}
       >
         <B4Alert icon={<SecurityIcon />}>
-          <strong>DPI Detector:</strong> Runs diagnostic tests to detect TSPU
-          (Technical System for Countering Threats) and ISP-level internet
-          blocking. Tests DNS integrity, domain accessibility via TLS/HTTP, and
-          TCP connection drops at characteristic byte thresholds. Inspired by{" "}
+          <Trans i18nKey="detector.alert" />{" "}
+          {t("detector.inspiredBy")}{" "}
           <a
             href="https://github.com/Runnin4ik/dpi-detector"
             target="_blank"
@@ -191,7 +194,7 @@ export const DetectorRunner = () => {
           >
             Runnin4ik/dpi-detector
           </a>{" "}
-          project.
+          {t("detector.project")}
         </B4Alert>
 
         {/* Test selection */}
@@ -223,7 +226,7 @@ export const DetectorRunner = () => {
               onClick={handleStart}
               disabled={!anyTestSelected}
             >
-              Start Detection
+              {t("detector.actions.startDetection")}
             </Button>
           )}
           {(running || isReconnecting) && (
@@ -233,7 +236,7 @@ export const DetectorRunner = () => {
               startIcon={<StopIcon />}
               onClick={() => void cancelDetector()}
             >
-              Cancel
+              {t("core.cancel")}
             </Button>
           )}
           {suite && !running && (
@@ -242,7 +245,7 @@ export const DetectorRunner = () => {
               startIcon={<RefreshIcon />}
               onClick={resetDetector}
             >
-              New Detection
+              {t("detector.actions.newDetection")}
             </Button>
           )}
         </Box>
@@ -253,7 +256,7 @@ export const DetectorRunner = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <CircularProgress size={20} sx={{ color: colors.secondary }} />
             <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-              Reconnecting to running detection...
+              {t("detector.actions.reconnecting")}
             </Typography>
           </Box>
         )}
@@ -296,91 +299,97 @@ export const DetectorRunner = () => {
         )}
       </AnimatePresence>
 
-      {/* DNS Results */}
-      {suite?.dns_result && (
-        <ResultSection
-          title="DNS Integrity Check"
-          icon={<DnsIcon />}
-          summary={suite.dns_result.summary}
-          ok={suite.dns_result.status === "OK"}
-        >
-          {suite.dns_result.doh_blocked && (
-            <B4Alert severity="error">
-              All DNS-over-HTTPS servers are blocked. Your ISP is filtering
-              encrypted DNS.
-            </B4Alert>
+      {/* Result sections in flexible layout */}
+      {hasAnyResult && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+          {suite?.dns_result && (
+            <Box sx={{ flex: "1 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title={t("detector.sections.dnsIntegrityCheck")}
+                icon={<DnsIcon />}
+                summary={suite.dns_result.summary}
+                ok={suite.dns_result.status === "OK"}
+              >
+                {suite.dns_result.doh_blocked && (
+                  <B4Alert severity="error">
+                    {t("detector.alerts.dohBlocked")}
+                  </B4Alert>
+                )}
+                {suite.dns_result.udp_blocked && (
+                  <B4Alert severity="error">
+                    {t("detector.alerts.udpBlocked")}
+                  </B4Alert>
+                )}
+                {suite.dns_result.stub_ips &&
+                  suite.dns_result.stub_ips.length > 0 && (
+                    <B4Alert severity="warning" icon={<WarningIcon />}>
+                      {t("detector.alerts.stubIps", { ips: suite.dns_result.stub_ips.join(", ") })}
+                    </B4Alert>
+                  )}
+                {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
+                  <DNSResults domains={suite.dns_result.domains} />
+                )}
+              </ResultSection>
+            </Box>
           )}
-          {suite.dns_result.udp_blocked && (
-            <B4Alert severity="error">
-              All UDP DNS servers (port 53) are blocked.
-            </B4Alert>
-          )}
-          {suite.dns_result.stub_ips &&
-            suite.dns_result.stub_ips.length > 0 && (
-              <B4Alert severity="warning" icon={<WarningIcon />}>
-                Stub/sinkhole IPs detected:{" "}
-                {suite.dns_result.stub_ips.join(", ")}. Multiple blocked domains
-                resolve to these IPs.
-              </B4Alert>
-            )}
-          {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
-            <DNSResults domains={suite.dns_result.domains} />
-          )}
-        </ResultSection>
-      )}
 
-      {/* Domain Results */}
-      {suite?.domains_result && (
-        <ResultSection
-          title="Domain Accessibility"
-          icon={<DomainIcon />}
-          summary={suite.domains_result.summary}
-          ok={suite.domains_result.blocked_count === 0}
-        >
-          {suite.domains_result.domains &&
-            suite.domains_result.domains.length > 0 && (
-              <DomainsResults domains={suite.domains_result.domains} />
-            )}
-        </ResultSection>
-      )}
-
-      {/* TCP Results */}
-      {suite?.tcp_result && (
-        <ResultSection
-          title="TCP Fat Probe Test"
-          icon={<NetworkIcon />}
-          summary={suite.tcp_result.summary}
-          ok={suite.tcp_result.detected_count === 0}
-        >
-          {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
-            <TCPResults targets={suite.tcp_result.targets} />
+          {suite?.domains_result && (
+            <Box sx={{ flex: "2 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title={t("detector.sections.domainAccessibility")}
+                icon={<DomainIcon />}
+                summary={suite.domains_result.summary}
+                ok={suite.domains_result.blocked_count === 0}
+              >
+                {suite.domains_result.domains &&
+                  suite.domains_result.domains.length > 0 && (
+                    <DomainsResults domains={suite.domains_result.domains} />
+                  )}
+              </ResultSection>
+            </Box>
           )}
-        </ResultSection>
-      )}
 
-      {/* SNI Results */}
-      {suite?.sni_result && (
-        <ResultSection
-          title="SNI Whitelist Brute-Force"
-          icon={<SniIcon />}
-          summary={suite.sni_result.summary}
-          ok={
-            suite.sni_result.tested_count === 0 ||
-            suite.sni_result.found_count > 0
-          }
-        >
-          {suite.sni_result.asn_results &&
-            suite.sni_result.asn_results.length > 0 && (
-              <SNIResults results={suite.sni_result.asn_results} />
-            )}
-        </ResultSection>
+          {suite?.tcp_result && (
+            <Box sx={{ flex: "2 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title={t("detector.sections.tcpFatProbeTest")}
+                icon={<NetworkIcon />}
+                summary={suite.tcp_result.summary}
+                ok={suite.tcp_result.detected_count === 0}
+              >
+                {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
+                  <TCPResults targets={suite.tcp_result.targets} />
+                )}
+              </ResultSection>
+            </Box>
+          )}
+
+          {suite?.sni_result && (
+            <Box sx={{ flex: "1 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title={t("detector.sections.sniWhitelistBruteForce")}
+                icon={<SniIcon />}
+                summary={suite.sni_result.summary}
+                ok={
+                  suite.sni_result.tested_count === 0 ||
+                  suite.sni_result.found_count > 0
+                }
+              >
+                {suite.sni_result.asn_results &&
+                  suite.sni_result.asn_results.length > 0 && (
+                    <SNIResults results={suite.sni_result.asn_results} />
+                  )}
+              </ResultSection>
+            </Box>
+          )}
+        </Box>
       )}
 
       {/* Detection History */}
       {history.length > 0 && (
         <B4Section
-          title="Previous Results"
-          description={`${history.length} detection${history.length === 1 ? "" : "s"} saved`}
+          title={t("core.history.title")}
+          description={t("detector.history.detectionsSaved", { count: history.length })}
           icon={<HistoryIcon />}
         >
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
@@ -390,7 +399,7 @@ export const DetectorRunner = () => {
               onClick={() => void clearHistory()}
               sx={{ color: colors.text.secondary }}
             >
-              Clear History
+              {t("core.history.clearHistory")}
             </Button>
           </Box>
           <Stack spacing={1}>
@@ -466,10 +475,10 @@ export const DetectorRunner = () => {
                                 }}
                                 size="small"
                               />
-                              {entry.tests.map((t) => (
+                              {entry.tests.map((test) => (
                                 <B4Badge
-                                  key={t}
-                                  label={testNames[t]}
+                                  key={test}
+                                  label={getTestName(t, test)}
                                   size="small"
                                   sx={{
                                     bgcolor: `${colors.text.primary}11`,
@@ -503,7 +512,7 @@ export const DetectorRunner = () => {
                           >
                             {formatTimeAgo(entry.end_time)}
                           </Typography>
-                          <Tooltip title="Remove from history">
+                          <Tooltip title={t("core.history.removeFromHistory")}>
                             <IconButton
                               size="small"
                               onClick={(e) => {
@@ -541,7 +550,7 @@ export const DetectorRunner = () => {
                             {/* DNS */}
                             {entry.dns_result && (
                               <ResultSection
-                                title="DNS Integrity Check"
+                                title={t("detector.sections.dnsIntegrityCheck")}
                                 icon={<DnsIcon />}
                                 summary={entry.dns_result.summary}
                                 ok={entry.dns_result.status === "OK"}
@@ -558,7 +567,7 @@ export const DetectorRunner = () => {
                             {/* Domains */}
                             {entry.domains_result && (
                               <ResultSection
-                                title="Domain Accessibility"
+                                title={t("detector.sections.domainAccessibility")}
                                 icon={<DomainIcon />}
                                 summary={entry.domains_result.summary}
                                 ok={
@@ -577,7 +586,7 @@ export const DetectorRunner = () => {
                             {/* TCP */}
                             {entry.tcp_result && (
                               <ResultSection
-                                title="TCP Fat Probe Test"
+                                title={t("detector.sections.tcpFatProbeTest")}
                                 icon={<NetworkIcon />}
                                 summary={entry.tcp_result.summary}
                                 ok={entry.tcp_result.detected_count === 0}
@@ -594,7 +603,7 @@ export const DetectorRunner = () => {
                             {/* SNI */}
                             {entry.sni_result && (
                               <ResultSection
-                                title="SNI Whitelist Brute-Force"
+                                title={t("detector.sections.sniWhitelistBruteForce")}
                                 icon={<SniIcon />}
                                 summary={entry.sni_result.summary}
                                 ok={

@@ -5,6 +5,7 @@ import { colors, spacing, radius } from "@design";
 import { B4Card } from "@common/B4Card";
 import type { DetectorSuite } from "@models/detector";
 import { staggerContainer, staggerItem, statusColors } from "./constants";
+import { useTranslation } from "react-i18next";
 
 interface SummaryCardProps {
   title: string;
@@ -83,14 +84,15 @@ function SummaryCard({ title, value, subtitle, icon, color }: SummaryCardProps) 
 export function SummaryDashboard({
   suite,
 }: Readonly<{ suite: DetectorSuite }>) {
+  const { t } = useTranslation();
   const cards: SummaryCardProps[] = [];
 
   if (suite.dns_result) {
     const r = suite.dns_result;
     const bad = r.spoof_count + r.intercept_count;
     cards.push({
-      title: "DNS Integrity",
-      value: bad > 0 ? `${bad} Issue${bad > 1 ? "s" : ""}` : "All OK",
+      title: t("detector.summary.dnsIntegrity"),
+      value: bad > 0 ? t(bad > 1 ? "detector.summary.issues_plural" : "detector.summary.issues", { count: bad }) : t("detector.summary.allOk"),
       subtitle: r.summary,
       icon: <DnsIcon sx={{ fontSize: 28 }} />,
       color: bad > 0 ? statusColors.error : statusColors.ok,
@@ -100,11 +102,11 @@ export function SummaryDashboard({
   if (suite.domains_result) {
     const r = suite.domains_result;
     cards.push({
-      title: "Domain Access",
+      title: t("detector.summary.domainAccess"),
       value:
         r.blocked_count > 0
-          ? `${r.blocked_count} Blocked`
-          : "All OK",
+          ? t("detector.summary.blocked", { count: r.blocked_count })
+          : t("detector.summary.allOk"),
       subtitle: r.summary,
       icon: <DomainIcon sx={{ fontSize: 28 }} />,
       color: r.blocked_count > 0 ? statusColors.error : statusColors.ok,
@@ -114,8 +116,8 @@ export function SummaryDashboard({
   if (suite.tcp_result) {
     const r = suite.tcp_result;
     cards.push({
-      title: "TSPU Detection",
-      value: r.detected_count > 0 ? `${r.detected_count} Detected` : "Clean",
+      title: t("detector.summary.tspuDetection"),
+      value: r.detected_count > 0 ? t("detector.summary.detected", { count: r.detected_count }) : t("detector.summary.clean"),
       subtitle: r.summary,
       icon: <NetworkIcon sx={{ fontSize: 28 }} />,
       color: r.detected_count > 0 ? statusColors.error : statusColors.ok,
@@ -125,13 +127,13 @@ export function SummaryDashboard({
   if (suite.sni_result) {
     const r = suite.sni_result;
     cards.push({
-      title: "SNI Brute-Force",
+      title: t("detector.summary.sniBruteForce"),
       value:
         r.found_count > 0
-          ? `${r.found_count} Found`
+          ? t("detector.summary.found", { count: r.found_count })
           : r.tested_count > 0
-            ? "None Found"
-            : "Not Blocked",
+            ? t("detector.summary.noneFound")
+            : t("detector.summary.notBlocked"),
       subtitle: r.summary,
       icon: <SniIcon sx={{ fontSize: 28 }} />,
       color:

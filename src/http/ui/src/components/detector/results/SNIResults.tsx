@@ -1,18 +1,19 @@
-import { Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { colors } from "@design";
 import type { SNIASNResult } from "@models/detector";
 import { ResultCard } from "../ResultCard";
 import { StatusChip } from "../StatusChip";
+import { useTranslation } from "react-i18next";
 
 function KVRow({
   label,
   value,
   mono,
-}: {
+}: Readonly<{
   label: string;
   value: React.ReactNode;
   mono?: boolean;
-}) {
+}>) {
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <Typography
@@ -47,8 +48,10 @@ function KVRow({
 export function SNIResults({
   results,
 }: Readonly<{ results: SNIASNResult[] }>) {
+  const { t } = useTranslation();
+
   return (
-    <Stack spacing={1}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {results.map((r, index) => {
         const status =
           r.status === "FOUND"
@@ -58,57 +61,58 @@ export function SNIResults({
               : "error";
 
         return (
-          <ResultCard
-            key={r.asn}
-            index={index}
-            status={status as "ok" | "error" | "warning"}
-            title={`${r.provider} (AS${r.asn})`}
-            subtitle={`IP: ${r.ip}`}
-            badge={<StatusChip status={r.status} />}
-            expandedContent={
-              <Stack spacing={1} sx={{ py: 0.5 }}>
-                <KVRow label="ASN" value={`AS${r.asn}`} mono />
-                <KVRow label="Provider" value={r.provider} />
-                <KVRow label="IP" value={r.ip} mono />
-                <KVRow
-                  label="Status"
-                  value={<StatusChip status={r.status} />}
-                />
-                {r.found_sni ? (
+          <Box key={r.asn} sx={{ flex: "1 1 300px", minWidth: 0 }}>
+            <ResultCard
+              index={index}
+              status={status as "ok" | "error" | "warning"}
+              title={`${r.provider} (AS${r.asn})`}
+              subtitle={`IP: ${r.ip}`}
+              badge={<StatusChip status={r.status} />}
+              expandedContent={
+                <Stack spacing={1} sx={{ py: 0.5 }}>
+                  <KVRow label={t("detector.labels.asn")} value={`AS${r.asn}`} mono />
+                  <KVRow label={t("detector.labels.provider")} value={r.provider} />
+                  <KVRow label={t("core.devices.ip")} value={r.ip} mono />
                   <KVRow
-                    label="Found SNI"
-                    value={
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily: "monospace",
-                          fontSize: "0.8rem",
-                          color: "#4caf50",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {r.found_sni}
-                      </Typography>
-                    }
+                    label={t("detector.labels.status")}
+                    value={<StatusChip status={r.status} />}
                   />
-                ) : (
-                  <KVRow
-                    label="Found SNI"
-                    value={
-                      <Typography
-                        variant="caption"
-                        sx={{ color: colors.text.secondary }}
-                      >
-                        -
-                      </Typography>
-                    }
-                  />
-                )}
-              </Stack>
-            }
-          />
+                  {r.found_sni ? (
+                    <KVRow
+                      label={t("detector.labels.foundSni")}
+                      value={
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "monospace",
+                            fontSize: "0.8rem",
+                            color: "#4caf50",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {r.found_sni}
+                        </Typography>
+                      }
+                    />
+                  ) : (
+                    <KVRow
+                      label={t("detector.labels.foundSni")}
+                      value={
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.text.secondary }}
+                        >
+                          -
+                        </Typography>
+                      }
+                    />
+                  )}
+                </Stack>
+              }
+            />
+          </Box>
         );
       })}
-    </Stack>
+    </Box>
   );
 }

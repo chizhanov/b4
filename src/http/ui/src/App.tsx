@@ -23,6 +23,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router";
+import { useTranslation } from "react-i18next";
 
 import {
   ConnectionIcon,
@@ -57,18 +58,18 @@ const DRAWER_WIDTH = 240;
 
 interface NavItem {
   path: string;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
 }
 
 const navItems: NavItem[] = [
-  { path: "/dashboard", label: "Dashboard", icon: <DashboardIcon /> },
-  { path: "/sets", label: "Sets", icon: <SetsIcon /> },
-  { path: "/discovery", label: "Discovery", icon: <DiscoveryIcon /> },
-  { path: "/detector", label: "DPI Detector", icon: <SecurityIcon /> },
-  { path: "/connections", label: "Connections", icon: <ConnectionIcon /> },
-  { path: "/logs", label: "Logs", icon: <LogsIcon /> },
-  { path: "/settings", label: "Settings", icon: <CoreIcon /> },
+  { path: "/dashboard", labelKey: "core.nav.dashboard", icon: <DashboardIcon /> },
+  { path: "/sets", labelKey: "core.nav.sets", icon: <SetsIcon /> },
+  { path: "/discovery", labelKey: "core.nav.discovery", icon: <DiscoveryIcon /> },
+  { path: "/detector", labelKey: "core.nav.detector", icon: <SecurityIcon /> },
+  { path: "/connections", labelKey: "core.nav.connections", icon: <ConnectionIcon /> },
+  { path: "/logs", labelKey: "core.nav.logs", icon: <LogsIcon /> },
+  { path: "/settings", labelKey: "core.nav.settings", icon: <CoreIcon /> },
 ];
 
 export default function App() {
@@ -77,6 +78,7 @@ export default function App() {
   const location = useLocation();
   const { unseenDomainsCount, resetDomainsBadge } = useWebSocket();
   const { isAuthenticated, isLoading, authRequired, logout } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return null;
@@ -93,14 +95,14 @@ export default function App() {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.startsWith("/dashboard")) return "System Dashboard";
-    if (path.startsWith("/sets")) return "Sets";
-    if (path.startsWith("/connections")) return "Connections";
-    if (path.startsWith("/test")) return "DPI Bypass Test";
-    if (path.startsWith("/logs")) return "Log Viewer";
-    if (path.startsWith("/detector")) return "DPI Detector";
-    if (path.startsWith("/settings")) return "Settings";
-    return "B4";
+    if (path.startsWith("/dashboard")) return t("core.nav.dashboard");
+    if (path.startsWith("/sets")) return t("core.nav.sets");
+    if (path.startsWith("/connections")) return t("core.nav.connections");
+    if (path.startsWith("/discovery")) return t("core.nav.discovery");
+    if (path.startsWith("/logs")) return t("core.nav.logs");
+    if (path.startsWith("/detector")) return t("core.nav.detector");
+    if (path.startsWith("/settings")) return t("core.nav.settings");
+    return t("core.nav.dashboard");
   };
 
   const isNavItemSelected = (navPath: string) => {
@@ -170,7 +172,7 @@ export default function App() {
                           item.icon
                         )}
                       </ListItemIcon>
-                      <ListItemText primary={item.label} />
+                      <ListItemText primary={t(item.labelKey)} />
                     </ListItemButton>
                   </ListItem>
                 );
@@ -208,7 +210,7 @@ export default function App() {
                   {getPageTitle()}
                 </Typography>
                 {authRequired && (
-                  <IconButton color="inherit" onClick={logout} title="Logout">
+                  <IconButton color="inherit" onClick={logout} title={t("core.logout")}>
                     <LogoutIcon />
                   </IconButton>
                 )}

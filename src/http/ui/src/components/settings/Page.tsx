@@ -13,8 +13,9 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { Trans, useTranslation } from "react-i18next";
 
 import {
   ApiIcon,
@@ -83,60 +84,9 @@ enum TABS {
   BACKUP,
 }
 
-// Settings categories with route paths
-const SETTING_CATEGORIES = [
-  {
-    id: TABS.GENERAL,
-    path: "general",
-    label: "Core",
-    icon: <CoreIcon />,
-    description: "Global network and queue configuration",
-    requiresRestart: true,
-  },
-  {
-    id: TABS.DOMAINS,
-    path: "domains",
-    label: "Geodat Settings",
-    icon: <DomainIcon />,
-    description: "Global geodata configuration",
-    requiresRestart: false,
-  },
-  {
-    id: TABS.DISCOVERY,
-    path: "discovery",
-    label: "Discovery",
-    icon: <DiscoveryIcon />,
-    description: "DPI bypass domains testing",
-    requiresRestart: false,
-  },
-  {
-    id: TABS.API,
-    path: "api",
-    label: "API",
-    icon: <ApiIcon />,
-    description: "API settings for various services",
-    requiresRestart: false,
-  },
-  {
-    id: TABS.PAYLOADS,
-    path: "payloads",
-    label: "Payloads",
-    icon: <CaptureIcon />,
-    description: "Capture real payloads from live traffic",
-    requiresRestart: false,
-  },
-  {
-    id: TABS.BACKUP,
-    path: "backup",
-    label: "Backup",
-    icon: <BackupIcon />,
-    description: "Backup and restore configuration",
-    requiresRestart: false,
-  },
-];
-
 export function SettingsPage() {
   const { showError, showSuccess } = useSnackbar();
+  const { t, i18n } = useTranslation();
   const [config, setConfig] = useState<B4Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<B4Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,15 +96,70 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Settings categories with route paths
+  const settingCategories = useMemo(
+    () => [
+      {
+        id: TABS.GENERAL,
+        path: "general",
+        label: t("settings.tabs.core"),
+        icon: <CoreIcon />,
+        description: t("settings.tabs.coreDesc"),
+        requiresRestart: true,
+      },
+      {
+        id: TABS.DOMAINS,
+        path: "domains",
+        label: t("settings.tabs.geodat"),
+        icon: <DomainIcon />,
+        description: t("settings.tabs.geodatDesc"),
+        requiresRestart: false,
+      },
+      {
+        id: TABS.DISCOVERY,
+        path: "discovery",
+        label: t("settings.tabs.discovery"),
+        icon: <DiscoveryIcon />,
+        description: t("settings.tabs.discoveryDesc"),
+        requiresRestart: false,
+      },
+      {
+        id: TABS.API,
+        path: "api",
+        label: t("settings.tabs.api"),
+        icon: <ApiIcon />,
+        description: t("settings.tabs.apiDesc"),
+        requiresRestart: false,
+      },
+      {
+        id: TABS.PAYLOADS,
+        path: "payloads",
+        label: t("settings.tabs.payloads"),
+        icon: <CaptureIcon />,
+        description: t("settings.tabs.payloadsDesc"),
+        requiresRestart: false,
+      },
+      {
+        id: TABS.BACKUP,
+        path: "backup",
+        label: t("settings.tabs.backup"),
+        icon: <BackupIcon />,
+        description: t("settings.tabs.backupDesc"),
+        requiresRestart: false,
+      },
+    ],
+    [t],
+  );
+
   // Determine current tab based on URL
   const currentTabPath = location.pathname.split("/settings/")[1] || "general";
   const currentTab =
-    SETTING_CATEGORIES.find((cat) => cat.path === currentTabPath)?.id ??
+    settingCategories.find((cat) => cat.path === currentTabPath)?.id ??
     TABS.GENERAL;
 
   // Handle tab change
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    const category = SETTING_CATEGORIES.find(
+    const category = settingCategories.find(
       (cat) => cat.id === (newValue as TABS),
     );
     if (category) {
@@ -220,19 +225,27 @@ export function SettingsPage() {
     };
   }, [config, originalConfig, hasChanges]);
 
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
   const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       const data = await configApi.get();
       setConfig(data);
       setOriginalConfig(structuredClone(data));
+      const lang = data.system.web_server.language;
+      if (lang && lang !== i18n.language) {
+        void i18n.changeLanguage(lang);
+        localStorage.setItem("b4-language", lang);
+      }
     } catch (error) {
       console.error("Error loading configuration:", error);
-      showError("Failed to load configuration");
+      showErrorRef.current(t("core.configLoadError"));
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, []);
 
   useEffect(() => {
     loadConfig().catch(() => {});
@@ -249,11 +262,11 @@ export function SettingsPage() {
       const requiresRestart = categoryHasChanges[0];
       showSuccess(
         requiresRestart
-          ? "Configuration saved! Please restart B4 for core settings to take effect."
-          : "Configuration saved successfully!",
+          ? t("core.configSavedRestart")
+          : t("core.configSaved"),
       );
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Failed to save");
+      showError(error instanceof Error ? error.message : t("core.configSaveError"));
     } finally {
       setSaving(false);
       await loadConfig();
@@ -264,7 +277,7 @@ export function SettingsPage() {
     if (originalConfig) {
       setConfig(structuredClone(originalConfig));
       setShowResetDialog(false);
-      showSuccess("Changes discarded");
+      showSuccess(t("core.changesDiscarded"));
     }
   };
 
@@ -305,7 +318,7 @@ export function SettingsPage() {
         <Stack alignItems="center" spacing={2}>
           <CircularProgress sx={{ color: colors.secondary }} />
           <Typography sx={{ color: colors.text.primary }}>
-            Loading configuration...
+            {t("core.loadingConfiguration")}
           </Typography>
         </Stack>
       </Backdrop>
@@ -344,11 +357,11 @@ export function SettingsPage() {
           >
             <Stack direction="row" spacing={2} alignItems="center">
               <Typography variant="h6" sx={{ color: colors.text.primary }}>
-                Configuration
+                {t("core.configuration")}
               </Typography>
               {hasChanges && (
                 <Chip
-                  label="Modified"
+                  label={t("core.modified")}
                   size="small"
                   icon={<WarningIcon />}
                   sx={{
@@ -362,8 +375,7 @@ export function SettingsPage() {
             <Stack direction="row" spacing={1}>
               {categoryHasChanges[TABS.GENERAL] && (
                 <B4Alert severity="warning" sx={{ py: 0, px: spacing.sm }}>
-                  Core settings require <strong>B4</strong> restart to take
-                  effect
+                  <Trans i18nKey="core.coreRestartWarning" components={{ strong: <strong /> }} />
                 </B4Alert>
               )}
               <Button
@@ -372,7 +384,7 @@ export function SettingsPage() {
                 onClick={() => setShowResetDialog(true)}
                 disabled={!hasChanges || saving}
               >
-                Discard Changes
+                {t("core.discard")}
               </Button>
               <Button
                 size="small"
@@ -383,7 +395,7 @@ export function SettingsPage() {
                 }}
                 disabled={saving}
               >
-                Reload
+                {t("core.reload")}
               </Button>
 
               <Button
@@ -397,14 +409,14 @@ export function SettingsPage() {
                 }}
                 disabled={!hasChanges || saving}
               >
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? t("core.saving") : t("core.save")}
               </Button>
             </Stack>
           </Stack>
 
           {/* Tabs */}
           <B4Tabs value={validTab} onChange={handleTabChange}>
-            {[...SETTING_CATEGORIES]
+            {[...settingCategories]
               .sort((a, b) => a.id - b.id)
               .map((cat) => (
                 <B4Tab
@@ -500,23 +512,22 @@ export function SettingsPage() {
 
       {/* Reset Confirmation Dialog */}
       <B4Dialog
-        title="Discard changes"
+        title={t("core.discardChanges")}
         open={showResetDialog}
         onClose={() => setShowResetDialog(false)}
         actions={
           <>
-            <Button onClick={() => setShowResetDialog(false)}>Cancel</Button>
+            <Button onClick={() => setShowResetDialog(false)}>{t("core.cancel")}</Button>
             <Box sx={{ flex: 1 }} />
             <Button onClick={resetChanges} variant="contained">
-              Discard Changes
+              {t("core.discard")}
             </Button>
           </>
         }
       >
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to discard all unsaved changes? This action
-            cannot be undone.
+            {t("core.discardConfirm")}
           </DialogContentText>
         </DialogContent>
       </B4Dialog>

@@ -6,6 +6,7 @@ import {
 } from "@mui/icons-material";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 
 interface ActiveSetsProps {
   sets: B4SetConfig[];
@@ -13,6 +14,7 @@ interface ActiveSetsProps {
 
 export const ActiveSets = ({ sets }: ActiveSetsProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   if (sets.length === 0) return null;
 
@@ -36,7 +38,7 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
           display: "block",
         }}
       >
-        Active Sets
+        {t("dashboard.activeSets.title")}
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
         {sets.map((set) => {
@@ -56,7 +58,7 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
                   <CircleIcon sx={{ fontSize: "8px !important" }} />
                 : <FolderIcon sx={{ fontSize: "14px !important" }} />
               }
-              label={`${set.name}: ${totalTargets} targets`}
+              label={`${set.name}: ${totalTargets} ${t("dashboard.activeSets.targets")}`}
               size="small"
               onClick={() => { navigate(`/sets/${set.id}`)?.catch(() => {}); }}
               sx={{
