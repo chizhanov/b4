@@ -4,6 +4,7 @@ import { B4Badge } from "@b4.elements";
 import type { DNSDomainResult } from "@models/detector";
 import { ResultCard } from "../ResultCard";
 import { StatusChip } from "../StatusChip";
+import { useTranslation } from "react-i18next";
 
 function DetailRow({
   label,
@@ -44,6 +45,8 @@ function DetailRow({
 export function DNSResults({
   domains,
 }: Readonly<{ domains: DNSDomainResult[] }>) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {domains.map((d, index) => {
@@ -71,21 +74,21 @@ export function DNSResults({
               }
               expandedContent={
                 <Stack spacing={1} sx={{ py: 0.5 }}>
-                  <DetailRow label="DoH IP" value={d.doh_ip} mono />
-                  <DetailRow label="UDP IP" value={d.udp_ip} mono />
+                  <DetailRow label={t("detector.labels.dohIp")} value={d.doh_ip} mono />
+                  <DetailRow label={t("detector.labels.udpIp")} value={d.udp_ip} mono />
                   <DetailRow
-                    label="Status"
+                    label={t("detector.labels.status")}
                     value={<StatusChip status={d.status} />}
                   />
                   {d.is_stub_ip && (
                     <DetailRow
-                      label="Note"
+                      label={t("detector.labels.note")}
                       value={
                         <Typography
                           variant="caption"
                           sx={{ color: statusColors.error }}
                         >
-                          Stub/sinkhole IP detected
+                          {t("detector.results.stubIpDetected")}
                         </Typography>
                       }
                     />

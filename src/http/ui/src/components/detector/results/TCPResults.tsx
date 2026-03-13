@@ -4,6 +4,7 @@ import { B4Badge } from "@b4.elements";
 import type { TCPTargetResult } from "@models/detector";
 import { ResultCard } from "../ResultCard";
 import { StatusChip } from "../StatusChip";
+import { useTranslation } from "react-i18next";
 
 function KVRow({
   label,
@@ -48,69 +49,71 @@ function KVRow({
 export function TCPResults({
   targets,
 }: Readonly<{ targets: TCPTargetResult[] }>) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-      {targets.map((t, index) => {
+      {targets.map((tr, index) => {
         const status =
-          t.status === "OK"
+          tr.status === "OK"
             ? "ok"
-            : t.status === "DETECTED"
+            : tr.status === "DETECTED"
               ? "error"
               : "warning";
 
         return (
-          <Box key={t.target.id} sx={{ flex: "1 1 300px", minWidth: 0 }}>
+          <Box key={tr.target.id} sx={{ flex: "1 1 300px", minWidth: 0 }}>
             <ResultCard
               index={index}
               status={status as "ok" | "error" | "warning"}
-              title={`${t.target.provider} (AS${t.target.asn})`}
-              subtitle={`${t.target.ip}:${t.target.port}`}
+              title={`${tr.target.provider} (AS${tr.target.asn})`}
+              subtitle={`${tr.target.ip}:${tr.target.port}`}
               badge={
                 <Stack direction="row" alignItems="center" spacing={0.5}>
                   <B4Badge
-                    label={t.alive ? "Alive" : "Dead"}
+                    label={tr.alive ? t("detector.results.alive") : t("detector.results.dead")}
                     size="small"
-                    color={t.alive ? "primary" : "error"}
+                    color={tr.alive ? "primary" : "error"}
                   />
-                  <StatusChip status={t.status} />
+                  <StatusChip status={tr.status} />
                 </Stack>
               }
               expandedContent={
                 <Stack spacing={1} sx={{ py: 0.5 }}>
                   <KVRow
-                    label="Endpoint"
-                    value={`${t.target.ip}:${t.target.port}`}
+                    label={t("detector.labels.endpoint")}
+                    value={`${tr.target.ip}:${tr.target.port}`}
                     mono
                   />
-                  <KVRow label="ASN" value={`AS${t.target.asn}`} mono />
+                  <KVRow label={t("detector.labels.asn")} value={`AS${tr.target.asn}`} mono />
                   <KVRow
-                    label="Alive"
+                    label={t("detector.results.alive")}
                     value={
                       <B4Badge
-                        label={t.alive ? "Yes" : "No"}
+                        label={tr.alive ? t("core.yes") : t("core.no")}
                         size="small"
-                        color={t.alive ? "primary" : "error"}
+                        color={tr.alive ? "primary" : "error"}
                       />
                     }
                   />
-                  {t.drop_at_kb != null && (
-                    <KVRow label="Drop at" value={`${t.drop_at_kb} KB`} mono />
+                  {tr.drop_at_kb != null && (
+                    <KVRow label={t("detector.labels.dropAt")} value={`${tr.drop_at_kb} KB`} mono />
                   )}
-                  {t.rtt_ms != null && (
-                    <KVRow label="RTT" value={`${t.rtt_ms} ms`} mono />
+                  {tr.rtt_ms != null && (
+                    <KVRow label={t("detector.labels.rtt")} value={`${tr.rtt_ms} ms`} mono />
                   )}
-                  {t.target.sni && (
-                    <KVRow label="SNI" value={t.target.sni} mono />
+                  {tr.target.sni && (
+                    <KVRow label={t("detector.labels.sni")} value={tr.target.sni} mono />
                   )}
-                  {t.detail && (
+                  {tr.detail && (
                     <KVRow
-                      label="Detail"
+                      label={t("detector.labels.detail")}
                       value={
                         <Typography
                           variant="caption"
                           sx={{ color: colors.text.secondary }}
                         >
-                          {t.detail}
+                          {tr.detail}
                         </Typography>
                       }
                     />

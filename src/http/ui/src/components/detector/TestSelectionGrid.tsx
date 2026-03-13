@@ -7,12 +7,13 @@ import { B4Card } from "@common/B4Card";
 import { B4Switch } from "@b4.fields";
 import type { DetectorTestType } from "@models/detector";
 import {
-  testNames,
-  testDescriptions,
+  getTestName,
+  getTestDescription,
   testSequence,
   staggerContainer,
   staggerItem,
 } from "./constants";
+import { useTranslation } from "react-i18next";
 
 const testIcons: Record<DetectorTestType, React.ReactNode> = {
   dns: <DnsIcon />,
@@ -30,10 +31,14 @@ function TestCard({
   test,
   selected,
   onToggle,
+  name,
+  description,
 }: {
   test: DetectorTestType;
   selected: boolean;
   onToggle: (test: DetectorTestType, checked: boolean) => void;
+  name: string;
+  description: string;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -99,7 +104,7 @@ function TestCard({
                   variant="body2"
                   sx={{ fontWeight: 600, color: colors.text.primary }}
                 >
-                  {testNames[test]}
+                  {name}
                 </Typography>
                 <Typography
                   variant="caption"
@@ -110,7 +115,7 @@ function TestCard({
                     lineHeight: 1.4,
                   }}
                 >
-                  {testDescriptions[test]}
+                  {description}
                 </Typography>
               </Box>
             </Stack>
@@ -135,6 +140,8 @@ export function TestSelectionGrid({
   selectedTests,
   onToggle,
 }: TestSelectionGridProps) {
+  const { t } = useTranslation();
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -149,6 +156,8 @@ export function TestSelectionGrid({
                 test={test}
                 selected={selectedTests[test]}
                 onToggle={onToggle}
+                name={getTestName(t, test)}
+                description={getTestDescription(t, test)}
               />
             </motion.div>
           </Grid>

@@ -3,6 +3,7 @@ import { colors } from "@design";
 import type { DomainCheckResult } from "@models/detector";
 import { ResultCard } from "../ResultCard";
 import { StatusChip } from "../StatusChip";
+import { useTranslation } from "react-i18next";
 
 function ProbeRow({
   label,
@@ -59,6 +60,8 @@ function ProbeRow({
 export function DomainsResults({
   domains,
 }: Readonly<{ domains: DomainCheckResult[] }>) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {domains.map((d, index) => {
@@ -83,7 +86,7 @@ export function DomainsResults({
                       variant="caption"
                       sx={{ color: "#f44336", fontWeight: 600 }}
                     >
-                      FAKE IP
+                      {t("detector.results.fakeIp")}
                     </Typography>
                   )}
                   <StatusChip status={d.overall} />
@@ -102,7 +105,7 @@ export function DomainsResults({
                           letterSpacing: "0.5px",
                         }}
                       >
-                        IP
+                        {t("detector.labels.ip")}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -117,19 +120,19 @@ export function DomainsResults({
                     </Stack>
                   )}
                   <ProbeRow
-                    label="TLS 1.3"
+                    label={t("detector.labels.tls13")}
                     status={d.tls13?.status}
                     detail={d.tls13?.detail}
                     latency={d.tls13?.latency_ms}
                   />
                   <ProbeRow
-                    label="TLS 1.2"
+                    label={t("detector.labels.tls12")}
                     status={d.tls12?.status}
                     detail={d.tls12?.detail}
                     latency={d.tls12?.latency_ms}
                   />
                   <ProbeRow
-                    label="HTTP"
+                    label={t("detector.labels.http")}
                     status={d.http?.status}
                     detail={d.http?.detail}
                   />

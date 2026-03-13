@@ -3,6 +3,7 @@ import { colors } from "@design";
 import type { SNIASNResult } from "@models/detector";
 import { ResultCard } from "../ResultCard";
 import { StatusChip } from "../StatusChip";
+import { useTranslation } from "react-i18next";
 
 function KVRow({
   label,
@@ -47,6 +48,8 @@ function KVRow({
 export function SNIResults({
   results,
 }: Readonly<{ results: SNIASNResult[] }>) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {results.map((r, index) => {
@@ -67,16 +70,16 @@ export function SNIResults({
               badge={<StatusChip status={r.status} />}
               expandedContent={
                 <Stack spacing={1} sx={{ py: 0.5 }}>
-                  <KVRow label="ASN" value={`AS${r.asn}`} mono />
-                  <KVRow label="Provider" value={r.provider} />
-                  <KVRow label="IP" value={r.ip} mono />
+                  <KVRow label={t("detector.labels.asn")} value={`AS${r.asn}`} mono />
+                  <KVRow label={t("detector.labels.provider")} value={r.provider} />
+                  <KVRow label={t("detector.labels.ip")} value={r.ip} mono />
                   <KVRow
-                    label="Status"
+                    label={t("detector.labels.status")}
                     value={<StatusChip status={r.status} />}
                   />
                   {r.found_sni ? (
                     <KVRow
-                      label="Found SNI"
+                      label={t("detector.labels.foundSni")}
                       value={
                         <Typography
                           variant="body2"
@@ -93,7 +96,7 @@ export function SNIResults({
                     />
                   ) : (
                     <KVRow
-                      label="Found SNI"
+                      label={t("detector.labels.foundSni")}
                       value={
                         <Typography
                           variant="caption"

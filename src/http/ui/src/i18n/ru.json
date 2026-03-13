@@ -1124,5 +1124,121 @@
       "blocked": "Заблокирован",
       "failed": "Не прошёл"
     }
+  },
+
+  "detector": {
+    "title": "TSPU / DPI Детектор",
+    "description": "Обнаружение DPI и блокировок на уровне провайдера",
+    "alert": "<strong>DPI Детектор:</strong> Запускает диагностические тесты для обнаружения ТСПУ (Технических средств противодействия угрозам) и блокировок интернета на уровне провайдера. Проверяет целостность DNS, доступность доменов через TLS/HTTP и обрывы TCP-соединений на характерных порогах.",
+    "inspiredBy": "Вдохновлено проектом",
+    "project": "",
+
+    "actions": {
+      "startDetection": "Запустить проверку",
+      "cancel": "Отмена",
+      "newDetection": "Новая проверка",
+      "reconnecting": "Переподключение к запущенной проверке..."
+    },
+
+    "tests": {
+      "names": {
+        "dns": "Целостность DNS",
+        "domains": "Доступность доменов",
+        "tcp": "TCP Fat Probe",
+        "sni": "Перебор SNI"
+      },
+      "descriptions": {
+        "dns": "Сравнивает UDP DNS с DoH для обнаружения подмены и перехвата",
+        "domains": "Проверяет заблокированные домены через TLS 1.3, TLS 1.2 и HTTP",
+        "tcp": "Обнаруживает обрывы ТСПУ через keep-alive запросы с увеличивающимся размером заголовка",
+        "sni": "Находит обходные SNI для заблокированных ASN перебором доменов из белого списка"
+      }
+    },
+
+    "progress": {
+      "checks": "{{completed}}/{{total}} проверок",
+      "currentlyRunning": "Выполняется"
+    },
+
+    "summary": {
+      "dnsIntegrity": "Целостность DNS",
+      "domainAccess": "Доступ к доменам",
+      "tspuDetection": "Обнаружение ТСПУ",
+      "sniBruteForce": "Перебор SNI",
+      "allOk": "Всё ОК",
+      "issues": "{{count}} проблема",
+      "issues_plural": "{{count}} проблем",
+      "blocked": "{{count}} заблокировано",
+      "clean": "Чисто",
+      "detected": "{{count}} обнаружено",
+      "found": "{{count}} найдено",
+      "noneFound": "Не найдено",
+      "notBlocked": "Не заблокировано"
+    },
+
+    "sections": {
+      "dnsIntegrityCheck": "Проверка целостности DNS",
+      "domainAccessibility": "Доступность доменов",
+      "tcpFatProbeTest": "TCP Fat Probe тест",
+      "sniWhitelistBruteForce": "Перебор SNI по белому списку"
+    },
+
+    "alerts": {
+      "dohBlocked": "Все DNS-over-HTTPS серверы заблокированы. Ваш провайдер фильтрует зашифрованный DNS.",
+      "udpBlocked": "Все UDP DNS серверы (порт 53) заблокированы.",
+      "stubIps": "Обнаружены заглушки/синкхолы: {{ips}}. Несколько заблокированных доменов резолвятся на эти IP."
+    },
+
+    "results": {
+      "stubIpDetected": "Обнаружен IP-заглушка",
+      "fakeIp": "ПОДМЕНА IP",
+      "alive": "Доступен",
+      "dead": "Недоступен"
+    },
+
+    "labels": {
+      "dohIp": "DoH IP",
+      "udpIp": "UDP IP",
+      "status": "Статус",
+      "note": "Прим.",
+      "ip": "IP",
+      "tls13": "TLS 1.3",
+      "tls12": "TLS 1.2",
+      "http": "HTTP",
+      "endpoint": "Адрес",
+      "asn": "ASN",
+      "dropAt": "Обрыв на",
+      "rtt": "RTT",
+      "sni": "SNI",
+      "detail": "Детали",
+      "provider": "Провайдер",
+      "foundSni": "Найденный SNI"
+    },
+
+    "history": {
+      "title": "Предыдущие результаты",
+      "detectionsSaved": "{{count}} проверка сохранена",
+      "detectionsSaved_plural": "{{count}} проверок сохранено",
+      "clearHistory": "Очистить историю",
+      "removeFromHistory": "Удалить из истории",
+      "complete": "Завершено",
+      "canceled": "Отменено",
+      "failed": "Ошибка",
+      "dnsOk": "DNS: ОК",
+      "dnsIssues": "DNS: {{count}} проблем",
+      "domainsOk": "Домены: ОК",
+      "domainsBlocked": "Домены: {{count}} заблокировано",
+      "tspuClean": "ТСПУ: Чисто",
+      "tspuDetected": "ТСПУ: {{count}} обнаружено",
+      "sniFound": "SNI: {{count}} найдено",
+      "sniNone": "SNI: Нет"
+    },
+
+    "time": {
+      "justNow": "только что",
+      "minutesAgo": "{{count}} мин. назад",
+      "hoursAgo": "{{count}} ч. назад",
+      "daysAgo": "{{count}} дн. назад"
+    }
   }
 }

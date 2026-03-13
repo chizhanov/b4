@@ -1124,5 +1124,121 @@
       "blocked": "Blocked",
       "failed": "Failed"
     }
+  },
+
+  "detector": {
+    "title": "TSPU / DPI Detector",
+    "description": "Detect ISP-level Deep Packet Inspection and blocking",
+    "alert": "<strong>DPI Detector:</strong> Runs diagnostic tests to detect TSPU (Technical System for Countering Threats) and ISP-level internet blocking. Tests DNS integrity, domain accessibility via TLS/HTTP, and TCP connection drops at characteristic byte thresholds.",
+    "inspiredBy": "Inspired by",
+    "project": "project",
+
+    "actions": {
+      "startDetection": "Start Detection",
+      "cancel": "Cancel",
+      "newDetection": "New Detection",
+      "reconnecting": "Reconnecting to running detection..."
+    },
+
+    "tests": {
+      "names": {
+        "dns": "DNS Integrity",
+        "domains": "Domain Accessibility",
+        "tcp": "TCP Fat Probe",
+        "sni": "SNI Whitelist Brute-Force"
+      },
+      "descriptions": {
+        "dns": "Compares UDP DNS vs DoH to detect spoofing and interception",
+        "domains": "Probes blocked domains via TLS 1.3, TLS 1.2, and HTTP",
+        "tcp": "Detects TSPU connection drops via keep-alive requests with increasing header size",
+        "sni": "Finds bypass SNI values for blocked ASNs by brute-forcing whitelist domains"
+      }
+    },
+
+    "progress": {
+      "checks": "{{completed}}/{{total}} checks",
+      "currentlyRunning": "Currently running"
+    },
+
+    "summary": {
+      "dnsIntegrity": "DNS Integrity",
+      "domainAccess": "Domain Access",
+      "tspuDetection": "TSPU Detection",
+      "sniBruteForce": "SNI Brute-Force",
+      "allOk": "All OK",
+      "issues": "{{count}} Issue",
+      "issues_plural": "{{count}} Issues",
+      "blocked": "{{count}} Blocked",
+      "clean": "Clean",
+      "detected": "{{count}} Detected",
+      "found": "{{count}} Found",
+      "noneFound": "None Found",
+      "notBlocked": "Not Blocked"
+    },
+
+    "sections": {
+      "dnsIntegrityCheck": "DNS Integrity Check",
+      "domainAccessibility": "Domain Accessibility",
+      "tcpFatProbeTest": "TCP Fat Probe Test",
+      "sniWhitelistBruteForce": "SNI Whitelist Brute-Force"
+    },
+
+    "alerts": {
+      "dohBlocked": "All DNS-over-HTTPS servers are blocked. Your ISP is filtering encrypted DNS.",
+      "udpBlocked": "All UDP DNS servers (port 53) are blocked.",
+      "stubIps": "Stub/sinkhole IPs detected: {{ips}}. Multiple blocked domains resolve to these IPs."
+    },
+
+    "results": {
+      "stubIpDetected": "Stub/sinkhole IP detected",
+      "fakeIp": "FAKE IP",
+      "alive": "Alive",
+      "dead": "Dead"
+    },
+
+    "labels": {
+      "dohIp": "DoH IP",
+      "udpIp": "UDP IP",
+      "status": "Status",
+      "note": "Note",
+      "ip": "IP",
+      "tls13": "TLS 1.3",
+      "tls12": "TLS 1.2",
+      "http": "HTTP",
+      "endpoint": "Endpoint",
+      "asn": "ASN",
+      "dropAt": "Drop at",
+      "rtt": "RTT",
+      "sni": "SNI",
+      "detail": "Detail",
+      "provider": "Provider",
+      "foundSni": "Found SNI"
+    },
+
+    "history": {
+      "title": "Previous Results",
+      "detectionsSaved": "{{count}} detection saved",
+      "detectionsSaved_plural": "{{count}} detections saved",
+      "clearHistory": "Clear History",
+      "removeFromHistory": "Remove from history",
+      "complete": "Complete",
+      "canceled": "Canceled",
+      "failed": "Failed",
+      "dnsOk": "DNS: OK",
+      "dnsIssues": "DNS: {{count}} issues",
+      "domainsOk": "Domains: OK",
+      "domainsBlocked": "Domains: {{count}} blocked",
+      "tspuClean": "TSPU: Clean",
+      "tspuDetected": "TSPU: {{count}} detected",
+      "sniFound": "SNI: {{count}} found",
+      "sniNone": "SNI: None"
+    },
+
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    }
   }
 }

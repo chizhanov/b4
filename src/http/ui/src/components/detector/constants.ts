@@ -1,18 +1,13 @@
 import type { DetectorTestType } from "@models/detector";
+import type { TFunction } from "i18next";
 
-export const testNames: Record<DetectorTestType, string> = {
-  dns: "DNS Integrity",
-  domains: "Domain Accessibility",
-  tcp: "TCP Fat Probe",
-  sni: "SNI Whitelist Brute-Force",
-};
+export function getTestName(t: TFunction, test: DetectorTestType): string {
+  return t(`detector.tests.names.${test}`);
+}
 
-export const testDescriptions: Record<DetectorTestType, string> = {
-  dns: "Compares UDP DNS vs DoH to detect spoofing and interception",
-  domains: "Probes blocked domains via TLS 1.3, TLS 1.2, and HTTP",
-  tcp: "Detects TSPU connection drops via keep-alive requests with increasing header size",
-  sni: "Finds bypass SNI values for blocked ASNs by brute-forcing whitelist domains",
-};
+export function getTestDescription(t: TFunction, test: DetectorTestType): string {
+  return t(`detector.tests.descriptions.${test}`);
+}
 
 export const testSequence: DetectorTestType[] = ["dns", "domains", "tcp", "sni"];
 
