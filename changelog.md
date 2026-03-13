@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.42.1] - 2026-03-13
+
+- FIXED: **B4 not capturing traffic on older routers** — on some routers with older kernels (e.g. ASUS RT-AC68U), B4 would start but show no connections. The fix ensures B4 properly registers itself with the system's packet filtering, so traffic is captured without needing any workarounds.
+- FIXED: **Copy JSON not working on Safari/Mac** — the "Copy JSON" button in Import/Export now works reliably on Safari and other browsers that restrict clipboard access.
+
 ## [1.42.0] - 2026-03-11
 
 - ADDED: **Backup & Restore** — you can now download a full backup of your B4 configuration and restore it later. Go to Settings > Backup to download a `.tar.gz` file with your config, discovery history, detector history, device aliases, and captured payloads. To restore, just upload a previously downloaded backup and restart B4.
