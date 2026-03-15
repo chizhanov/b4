@@ -3,6 +3,8 @@ package tables
 import (
 	"fmt"
 	"strings"
+
+	"github.com/daniellavrushin/b4/log"
 )
 
 type routeIptBackend struct {
@@ -20,9 +22,9 @@ func (b *routeIptBackend) ipt4() string {
 
 func (b *routeIptBackend) ipt6() string {
 	if b.legacy {
-		return "ip6tables-legacy"
+		return backendIP6TablesLegacy
 	}
-	return "ip6tables"
+	return backendIP6Tables
 }
 
 func (b *routeIptBackend) iptBoth() []string {
@@ -68,13 +70,17 @@ func (b *routeIptBackend) addElement(setName, ip string, ttlSec int) {
 
 func (b *routeIptBackend) ensureChain(chain string, isMangle bool) error {
 	table := iptTable(isMangle)
+	ipt4 := b.ipt4()
 	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
 		out, err := run(cmd, "-w", "-t", table, "-N", chain)
 		if err != nil && !strings.Contains(strings.TrimSpace(out), "already exists") {
-			return fmt.Errorf("%s -N %s in %s: %v: %s", cmd, chain, table, err, strings.TrimSpace(out))
+			if cmd == ipt4 {
+				return fmt.Errorf("%s -N %s in %s: %v: %s", cmd, chain, table, err, strings.TrimSpace(out))
+			}
+			log.Tracef("routing: %s -N %s in %s failed (non-fatal): %s", cmd, chain, table, strings.TrimSpace(out))
 		}
 	}
 	return nil

@@ -145,7 +145,7 @@ func runLogged(op string, args ...string) {
 	out, err := run(args...)
 	if err != nil {
 		msg := strings.TrimSpace(out)
-		if strings.Contains(msg, "File exists") || strings.Contains(msg, "No such file or directory") {
+		if strings.Contains(msg, "File exists") || strings.Contains(msg, "already exists") {
 			return
 		}
 		log.Warnf("%s failed: %v | cmd=%s | out=%s", op, err, strings.Join(args, " "), strings.TrimSpace(out))
