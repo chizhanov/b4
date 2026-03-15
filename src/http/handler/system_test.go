@@ -108,12 +108,14 @@ func TestHandleCacheStats_NoWorkers(t *testing.T) {
 
 func TestHandleRestart_Standalone(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{
+		cfg:                    &cfg,
+		overrideServiceManager: func() string { return "standalone" },
+	}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()
 
-	// In test environment, detectServiceManager returns "standalone"
 	req := httptest.NewRequest(http.MethodPost, "/api/system/restart", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
