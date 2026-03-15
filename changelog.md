@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.44.0] - 2026-03-15
+
+- FIXED: **B4 crashing on some Xiaomi routers (BE7000, AX3200 and similar)** — B4 would fail to start with a "Could not process rule" error because it incorrectly chose nftables on devices where nftables isn't fully supported. B4 now tests whether nftables actually works before using it, and automatically falls back to iptables-legacy when needed.
+- ADDED: **Firewall engine selector** — a new "Firewall Engine" option in Settings lets you manually choose between `nftables`, `iptables`, or `iptables-legacy` if auto-detection doesn't work for your device.
+
 ## [1.43.0] - 2026-03-14
 
 - ADDED: **Language selection** — you can now switch the web interface language in Settings. English and Russian are available.
