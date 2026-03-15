@@ -20,9 +20,14 @@ func (api *API) RegisterSystemApi() {
 	api.mux.HandleFunc("/api/system/cache", api.handleCacheStats)
 }
 
-var detectServiceManager = _detectServiceManager
+func (api *API) getServiceManager() string {
+	if api.overrideServiceManager != nil {
+		return api.overrideServiceManager()
+	}
+	return detectServiceManager()
+}
 
-func _detectServiceManager() string {
+func detectServiceManager() string {
 	if _, err := os.Stat("/etc/systemd/system/b4.service"); err == nil {
 		if _, err := exec.LookPath("systemctl"); err == nil {
 			return "systemd"
@@ -60,7 +65,7 @@ func (api *API) handleSystemInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceManager := detectServiceManager()
+	serviceManager := api.getServiceManager()
 	isDocker := serviceManager == "docker"
 	canRestart := serviceManager != "standalone" && !isDocker
 
@@ -82,7 +87,7 @@ func (api *API) handleRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceManager := detectServiceManager()
+	serviceManager := api.getServiceManager()
 	log.Infof("Restart requested via web UI (service manager: %s)", serviceManager)
 
 	var response RestartResponse
@@ -190,7 +195,7 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceManager := detectServiceManager()
+	serviceManager := api.getServiceManager()
 	log.Infof("Update requested via web UI (service manager: %s, version: %s)", serviceManager, req.Version)
 
 	if serviceManager == "docker" {

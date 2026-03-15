@@ -3220,7 +3220,7 @@ _sysinfo_show_storage() {
 }
 main() {
     if [ ! -t 0 ] && [ -e /dev/tty ]; then
-        exec </dev/tty 2>/dev/null || true
+        { exec </dev/tty; } 2>/dev/null || true
     fi
 
     ACTION="install"
