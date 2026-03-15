@@ -414,12 +414,11 @@ func routeGetIfaceAddr(iface string, wantV6 bool) string {
 			if ip.To4() != nil {
 				continue
 			}
-			if ip.IsGlobalUnicast() {
-				return ip.String()
+
+			if !ip.IsGlobalUnicast() {
+				continue
 			}
-			if best == "" {
-				best = ip.String()
-			}
+			return ip.String()
 		} else {
 			ip4 := ip.To4()
 			if ip4 == nil {
@@ -558,7 +557,7 @@ func routeSanitizeSetID(setID string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(setID))
 	suffix := fmt.Sprintf("_%x", h.Sum32()%0xFFFF)
-	maxPrefix := 27 - len(suffix) // keep total <= 27 chars (nft limit is 31, prefix "b4r_" + "_v4" = 8)
+	maxPrefix := 20 - len(suffix)
 	if len(s) > maxPrefix {
 		s = s[:maxPrefix]
 	}

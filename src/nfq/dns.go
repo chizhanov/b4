@@ -12,6 +12,49 @@ import (
 	"github.com/florianl/go-nfqueue"
 )
 
+// parseDNSName parses a DNS domain name from msg starting at the given offset.
+func parseDNSName(msg []byte, offset int) (string, bool) {
+	if offset < 0 || offset >= len(msg) {
+		return "", false
+	}
+	var labels []string
+	i := offset
+	const maxSteps = 256
+	steps := 0
+	for {
+		if steps >= maxSteps || i >= len(msg) {
+			return "", false
+		}
+		steps++
+		l := int(msg[i])
+		if l == 0 {
+			break
+		}
+
+		if l&0xC0 == 0xC0 {
+			if i+1 >= len(msg) {
+				return "", false
+			}
+			ptr := int(l&0x3F)<<8 | int(msg[i+1])
+			if ptr >= len(msg) {
+				return "", false
+			}
+			i = ptr
+			continue
+		}
+
+		if i+1+l > len(msg) {
+			return "", false
+		}
+		labels = append(labels, string(msg[i+1:i+1+l]))
+		i += 1 + l
+	}
+	if len(labels) == 0 {
+		return "", false
+	}
+	return strings.Join(labels, "."), true
+}
+
 func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, payload []byte, raw []byte, ihl int, id uint32, srcMac string) int {
 
 	if dport == 53 {
@@ -23,10 +66,11 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet {
 				if txidOK && set.Routing.Enabled {
 					var clientIP, dnsServerIP net.IP
-					if ipVersion == IPv4 {
+					switch ipVersion {
+					case IPv4:
 						clientIP = net.IP(raw[12:16])
 						dnsServerIP = net.IP(raw[16:20])
-					} else if ipVersion == IPv6 {
+					case IPv6:
 						clientIP = net.IP(raw[8:24])
 						dnsServerIP = net.IP(raw[24:40])
 					}
@@ -131,6 +175,11 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 	if sport == 53 {
 		if txid, ok := dns.ParseTransactionID(payload); ok {
 			domain, _ := dns.ParseQueryDomain(payload)
+			if domain == "" {
+				if d, ok := parseDNSName(payload, 12); ok {
+					domain = d
+				}
+			}
 			domain = strings.ToLower(domain)
 			var clientIP net.IP
 			var dnsServerIP net.IP

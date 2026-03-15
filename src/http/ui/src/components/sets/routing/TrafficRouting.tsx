@@ -45,7 +45,7 @@ export const TrafficRouting = ({
           checked={routing.enabled}
           onChange={(checked: boolean) => onChange("routing.enabled", checked)}
           description={t("sets.routing.enableDesc")}
-          disabled={availableIfaces.length === 0}
+          disabled={availableIfaces.length === 0 && !routing.enabled}
         />
       </Grid>
 
