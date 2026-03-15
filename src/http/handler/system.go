@@ -20,7 +20,9 @@ func (api *API) RegisterSystemApi() {
 	api.mux.HandleFunc("/api/system/cache", api.handleCacheStats)
 }
 
-func detectServiceManager() string {
+var detectServiceManager = _detectServiceManager
+
+func _detectServiceManager() string {
 	if _, err := os.Stat("/etc/systemd/system/b4.service"); err == nil {
 		if _, err := exec.LookPath("systemctl"); err == nil {
 			return "systemd"

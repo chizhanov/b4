@@ -113,7 +113,10 @@ func TestHandleRestart_Standalone(t *testing.T) {
 	api.mux = mux
 	api.RegisterSystemApi()
 
-	// In test environment, detectServiceManager returns "standalone"
+	orig := detectServiceManager
+	detectServiceManager = func() string { return "standalone" }
+	defer func() { detectServiceManager = orig }()
+
 	req := httptest.NewRequest(http.MethodPost, "/api/system/restart", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
