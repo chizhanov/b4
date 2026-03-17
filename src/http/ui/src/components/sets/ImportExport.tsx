@@ -6,7 +6,7 @@ import { useSnackbar } from "@context/SnackbarProvider";
 import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
-import { createDefaultSet } from "@models/defaults";
+import { createDefaultSet, defaultRoutingConfig } from "@models/defaults";
 
 type Obj = Record<string, unknown>;
 
@@ -170,6 +170,8 @@ export const ImportExportSettings = ({
         faking.payload_file = "";
       }
     }
+
+    set.routing = { ...defaultRoutingConfig, ...(set.routing as Record<string, unknown>) };
 
     return set as unknown as B4SetConfig;
   }

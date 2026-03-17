@@ -79,6 +79,8 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	cfg.ApplyLogLevel(verboseFlag)
+	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
+	nfq.RoutingHandleDNSFunc = tables.RoutingHandleDNS
 
 	if err := initLogging(&cfg); err != nil {
 		return fmt.Errorf("logging initialization failed: %w", err)
@@ -87,6 +89,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	if clearTables {
 		log.Infof("Clearing iptables rules as requested (--clear-iptables)")
 		tables.ClearRules(&cfg)
+		tables.RoutingClearAll()
 		log.Infof("IPTables rules cleared successfully")
 		return nil
 	}
@@ -122,6 +125,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Loaded targets: %d domains, %d IPs across %d sets", totalDomains, totalIps, len(cfg.Sets))
+	tables.RoutingClearAll()
 
 	// Setup iptables/nftables rules
 	if !cfg.System.Tables.SkipSetup {
@@ -271,6 +275,8 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 			}
 		}()
 	}
+
+	tables.RoutingClearAll()
 
 	// Wait for all shutdown tasks or timeout
 	shutdownDone := make(chan struct{})

@@ -351,6 +351,9 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 	}
 
 	*a.cfg = *newCfg
+	if routingSyncFunc != nil {
+		routingSyncFunc(a.cfg)
+	}
 
 	return nil
 }

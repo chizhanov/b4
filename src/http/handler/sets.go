@@ -195,7 +195,9 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 	oldConfig := api.cfg.Clone()
 
 	set.Id = uuid.New().String()
+	log.Tracef("createSet: routing before defaults: enabled=%v, egress=%s, ttl=%d", set.Routing.Enabled, set.Routing.EgressInterface, set.Routing.IPTTLSeconds)
 	api.initializeSetDefaults(&set)
+	log.Tracef("createSet: routing after defaults: enabled=%v, egress=%s, ttl=%d", set.Routing.Enabled, set.Routing.EgressInterface, set.Routing.IPTTLSeconds)
 
 	api.cfg.Sets = append([]*config.SetConfig{&set}, api.cfg.Sets...)
 
@@ -211,7 +213,7 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 		log.Infof("Soft restart completed successfully")
 	}
 
-	log.Infof("Created set '%s' (id: %s)", set.Name, set.Id)
+	log.Tracef("Created set '%s' (id: %s)", set.Name, set.Id)
 	setJsonHeader(w)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(set)
@@ -223,6 +225,8 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	log.Tracef("updateSet: routing received: enabled=%v, egress=%s, ttl=%d", updated.Routing.Enabled, updated.Routing.EgressInterface, updated.Routing.IPTTLSeconds)
 
 	oldConfig := api.cfg.Clone()
 
@@ -363,6 +367,12 @@ func (api *API) initializeSetDefaults(set *config.SetConfig) {
 	}
 	if set.Faking.SNIMutation.FakeSNIs == nil {
 		set.Faking.SNIMutation.FakeSNIs = []string{}
+	}
+	if set.Routing.SourceInterfaces == nil {
+		set.Routing.SourceInterfaces = []string{}
+	}
+	if set.Routing.IPTTLSeconds <= 0 {
+		set.Routing.IPTTLSeconds = config.DefaultSetConfig.Routing.IPTTLSeconds
 	}
 }
 
