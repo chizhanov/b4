@@ -79,7 +79,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 		config.ApplyTimezone(cfg.System.Timezone)
 	}
 
-	cfg.ApplyLogLevel(verboseFlag)
+	if cmd.Flags().Changed("verbose") {
+		cfg.ApplyLogLevel(verboseFlag)
+	}
 	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
 	nfq.RoutingHandleDNSFunc = tables.RoutingHandleDNS
 
@@ -96,12 +98,6 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Starting B4 packet processor")
-
-	if cmd.Flags().Changed("verbose") {
-		cfg.ApplyLogLevel(verboseFlag)
-		log.CurLevel.Store(int32(currentLogLevel))
-		log.Infof("Log level set to %s", verboseFlag)
-	}
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
