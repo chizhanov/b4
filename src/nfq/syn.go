@@ -70,6 +70,7 @@ func (w *Worker) sendFakeSyn(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdr
 
 	sock.FixIPv4Checksum(fakePkt[:ipHdrLen])
 	sock.FixTCPChecksum(fakePkt)
+	corruptTCPChecksum(fakePkt, ipHdrLen)
 
 	dst := net.IP(fakePkt[16:20])
 	_ = w.sock.SendIPv4(fakePkt, dst)
@@ -137,6 +138,7 @@ func (w *Worker) sendFakeSynV6(set *config.SetConfig, raw []byte, ipHdrLen, tcpH
 	}
 
 	sock.FixTCPChecksumV6(fakePkt)
+	corruptTCPChecksum(fakePkt, ipHdrLen)
 
 	dst := net.IP(fakePkt[24:40])
 	_ = w.sock.SendIPv6(fakePkt, dst)

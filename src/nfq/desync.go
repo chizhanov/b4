@@ -40,6 +40,11 @@ func dynamicTTL(packet []byte, isIPv6 bool, configTTL uint8) uint8 {
 	return ttl
 }
 
+func corruptTCPChecksum(pkt []byte, ipHdrLen int) {
+	pkt[ipHdrLen+16] ^= 0xFF
+	pkt[ipHdrLen+17] ^= 0xFF
+}
+
 func NewDesyncAttacker(cfg *config.TCPConfig) *DesyncAttacker {
 	return &DesyncAttacker{
 		mode:  cfg.Desync.Mode,
@@ -116,6 +121,7 @@ func (w *Worker) sendDesyncRST(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
+		corruptTCPChecksum(fake, ipHdrLen)
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -154,6 +160,7 @@ func (w *Worker) sendDesyncFIN(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
+		corruptTCPChecksum(fake, ipHdrLen)
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(200 * time.Microsecond)
@@ -202,6 +209,7 @@ func (w *Worker) sendDesyncACK(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
+		corruptTCPChecksum(fake, ipHdrLen)
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(50 * time.Microsecond)
@@ -240,6 +248,7 @@ func (w *Worker) sendDesyncFull(packet []byte, dst net.IP, da *DesyncAttacker) {
 	binary.BigEndian.PutUint16(synFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(synFake[:ipHdrLen])
 	sock.FixTCPChecksum(synFake)
+	corruptTCPChecksum(synFake, ipHdrLen)
 	_ = w.sock.SendIPv4(synFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
@@ -256,6 +265,7 @@ func (w *Worker) sendDesyncFull(packet []byte, dst net.IP, da *DesyncAttacker) {
 		binary.BigEndian.PutUint16(rstFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 		sock.FixIPv4Checksum(rstFake[:ipHdrLen])
 		sock.FixTCPChecksum(rstFake)
+		corruptTCPChecksum(rstFake, ipHdrLen)
 
 		_ = w.sock.SendIPv4(rstFake, dst)
 		time.Sleep(50 * time.Microsecond)
@@ -268,6 +278,7 @@ func (w *Worker) sendDesyncFull(packet []byte, dst net.IP, da *DesyncAttacker) {
 	binary.BigEndian.PutUint16(pushFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(pushFake[:ipHdrLen])
 	sock.FixTCPChecksum(pushFake)
+	corruptTCPChecksum(pushFake, ipHdrLen)
 	_ = w.sock.SendIPv4(pushFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
@@ -280,6 +291,7 @@ func (w *Worker) sendDesyncFull(packet []byte, dst net.IP, da *DesyncAttacker) {
 	binary.BigEndian.PutUint16(urgFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(urgFake[:ipHdrLen])
 	sock.FixTCPChecksum(urgFake)
+	corruptTCPChecksum(urgFake, ipHdrLen)
 	_ = w.sock.SendIPv4(urgFake, dst)
 }
 
@@ -348,6 +360,7 @@ func (w *Worker) sendDesyncRSTv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
+		corruptTCPChecksum(fake, ipv6HdrLen)
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -383,6 +396,7 @@ func (w *Worker) sendDesyncFINv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
+		corruptTCPChecksum(fake, ipv6HdrLen)
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(200 * time.Microsecond)
@@ -428,6 +442,7 @@ func (w *Worker) sendDesyncACKv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
+		corruptTCPChecksum(fake, ipv6HdrLen)
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(50 * time.Microsecond)
@@ -461,6 +476,7 @@ func (w *Worker) sendDesyncFullv6(packet []byte, dst net.IP, da *DesyncAttacker)
 	synFake[7] = ttl
 	binary.BigEndian.PutUint16(synFake[4:6], uint16(tcpHdrLen))
 	sock.FixTCPChecksumV6(synFake)
+	corruptTCPChecksum(synFake, ipv6HdrLen)
 	_ = w.sock.SendIPv6(synFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
@@ -476,6 +492,7 @@ func (w *Worker) sendDesyncFullv6(packet []byte, dst net.IP, da *DesyncAttacker)
 		rstFake[7] = ttl
 		binary.BigEndian.PutUint16(rstFake[4:6], uint16(tcpHdrLen))
 		sock.FixTCPChecksumV6(rstFake)
+		corruptTCPChecksum(rstFake, ipv6HdrLen)
 
 		_ = w.sock.SendIPv6(rstFake, dst)
 		time.Sleep(50 * time.Microsecond)

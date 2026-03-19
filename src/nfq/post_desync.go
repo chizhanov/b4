@@ -49,6 +49,7 @@ func (w *Worker) sendPostDesyncRST(cfg *config.SetConfig, raw []byte, ipHdrLen i
 
 		sock.FixIPv4Checksum(rst[:ipHdrLen])
 		sock.FixTCPChecksum(rst)
+		corruptTCPChecksum(rst, ipHdrLen)
 
 		_ = w.sock.SendIPv4(rst, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -78,6 +79,7 @@ func (w *Worker) sendPostDesyncRSTv6(cfg *config.SetConfig, raw []byte, dst net.
 	binary.BigEndian.PutUint16(rst[4:6], uint16(tcpHdrLen))
 
 	sock.FixTCPChecksumV6(rst)
+	corruptTCPChecksum(rst, ipv6HdrLen)
 
 	_ = w.sock.SendIPv6(rst, dst)
 }
