@@ -11,6 +11,7 @@
 - IMPROVED: **Fake packets now match real connection fingerprint** — fake desync packets (RST, FIN, ACK) now preserve the original TCP options (timestamps, window scale, SACK) instead of stripping them. This prevents DPI from detecting fakes by comparing TCP header fingerprints.
 - IMPROVED: **Dynamic fake TTL** — fake packet TTL is now clamped to never exceed the real packet's TTL, preventing impossible TTL values that DPI systems use to identify forged packets.
 - IMPROVED: **Removed checksum corruption from fakes** — fake packets now use valid TCP checksums instead of intentionally corrupted ones, relying solely on TTL to prevent server delivery. DPI can no longer detect fakes by checking for bad checksums.
+- IMPROVED: **TLS info shown on all packets** — domain name and TLS version now appear in logs for every packet in a connection, not just the first one.
 
 ## [1.44.1] - 2026-03-15
 

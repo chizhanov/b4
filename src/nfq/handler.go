@@ -239,12 +239,15 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	if matched && cfg.IsTCPPort(dport) && set.TCP.Duplicate.Enabled && set.TCP.Duplicate.Count > 0 {
 		log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", pkt.dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
+		dupConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
+		dupHost, dupTLS, _ := tlsCache.Lookup(dupConnKey)
+
 		m := metrics.GetMetricsCollector()
-		m.RecordConnection("TCP-DUP", "", pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, "")
+		m.RecordConnection("TCP-DUP", dupHost, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(dupTLS))
 		m.RecordPacket(uint64(len(pkt.raw)))
 
 		if !log.IsDiscoveryActive() {
-			log.Infof(",TCP-DUP,,,%s:%d,%s,%s:%d,%s", pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac)
+			log.Infof(",TCP-DUP,%s,%s,%s:%d,%s,%s:%d,%s,%s", set.Name, dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS))
 		}
 
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
@@ -322,6 +325,10 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
 
+		if host != "" && tlsVersion != 0 {
+			tlsCache.Store(connKey, host, tlsVersion)
+		}
+
 		if captureManager := capture.GetManager(cfg); captureManager != nil {
 			captureManager.CapturePayload(connKey, host, "tls", payload)
 		}
@@ -348,6 +355,18 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		if matchedLearned && !matchedSNI && !(len(payload) >= 1 && payload[0] == 0x16) {
 			matched = false
 			set = nil
+		}
+	}
+
+	if host == "" || tlsVersion == 0 {
+		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
+		if cachedHost, cachedTLS, found := tlsCache.Lookup(connKey); found {
+			if host == "" {
+				host = cachedHost
+			}
+			if tlsVersion == 0 {
+				tlsVersion = cachedTLS
+			}
 		}
 	}
 
