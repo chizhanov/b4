@@ -60,17 +60,17 @@ func (w *Worker) sendComboFragments(cfg *config.SetConfig, packet []byte, dst ne
 	ShuffleSegments(segments, combo.ShuffleMode, r)
 	SetMaxSeqPSH(segments, pi.IPHdrLen, sock.FixTCPChecksum)
 
-	firstDelayMs := combo.FirstDelayMs
+	firstDelayMs := config.ResolveRange(combo.FirstDelayMs, combo.FirstDelayMsMax)
 	if firstDelayMs <= 0 {
 		firstDelayMs = 100
 	}
-	jitterMaxUs := combo.JitterMaxUs
+	jitterMaxUs := config.ResolveRange(combo.JitterMaxUs, combo.JitterMaxUsMax)
 	if jitterMaxUs <= 0 {
 		jitterMaxUs = 2000
 	}
 
 	fakePerSeg := combo.FakePerSegment
-	fakePerSegCount := combo.FakePerSegCount
+	fakePerSegCount := config.ResolveRange(combo.FakePerSegCount, combo.FakePerSegCountMax)
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
 	} else if fakePerSegCount > 11 {

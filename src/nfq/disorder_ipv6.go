@@ -48,7 +48,7 @@ func (w *Worker) sendDisorderFragmentsV6(cfg *config.SetConfig, packet []byte, d
 	minJitter, maxJitter := GetDisorderJitter(disorder)
 
 	fakePerSeg := disorder.FakePerSegment
-	fakePerSegCount := disorder.FakePerSegCount
+	fakePerSegCount := config.ResolveRange(disorder.FakePerSegCount, disorder.FakePerSegCountMax)
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
 	} else if fakePerSegCount > 11 {

@@ -112,7 +112,8 @@ func needsTCPInjection(set *config.SetConfig) bool {
 		set.TCP.Desync.Mode != config.ConfigOff ||
 		set.TCP.Desync.PostDesync ||
 		set.TCP.Win.Mode != config.ConfigOff ||
-		set.Fragmentation.Strategy != config.ConfigNone
+		set.Fragmentation.Strategy != config.ConfigNone ||
+		len(set.Fragmentation.StrategyPool) > 0
 }
 
 func needsTCPSynInjection(set *config.SetConfig) bool {
@@ -120,7 +121,8 @@ func needsTCPSynInjection(set *config.SetConfig) bool {
 		return false
 	}
 
-	return set.TCP.SynFake || (set.Fragmentation.Strategy != config.ConfigNone && set.Faking.TCPMD5)
+	hasActiveStrategy := set.Fragmentation.Strategy != config.ConfigNone || len(set.Fragmentation.StrategyPool) > 0
+	return set.TCP.SynFake || (hasActiveStrategy && set.Faking.TCPMD5)
 }
 
 // parseIPHeaders parses IP version, protocol, addresses and header length.
