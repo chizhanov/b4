@@ -1,6 +1,6 @@
 # B4 - Bye Bye Big Bro
 
-## [1.45.0] - 2026-03-xx
+## [1.45.0] - 2026-03-21
 
 - ADDED: **Traffic routing** — you can now route traffic for matched domains through a specific network interface. When a set matches a domain, B4 resolves its IPs and directs that traffic through the chosen output interface. Configure it in the `Routing` tab when editing a set.
 - ADDED: **Position randomization** — SNI split position, OOB position, and TLS record position now support ranges. Each connection picks a random value within the range, making traffic harder for DPI to fingerprint.
