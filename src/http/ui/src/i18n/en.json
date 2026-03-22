@@ -205,6 +205,27 @@
       "passwordHelp": "Leave empty for no authentication",
       "restartNote": "Restart B4 after changing SOCKS5 settings for changes to take effect."
     },
+    "MTProto": {
+      "title": "MTProto Proxy",
+      "description": "Built-in Telegram MTProto proxy with fake-TLS obfuscation",
+      "settings": "MTProto Settings",
+      "enable": "Enable MTProto Proxy",
+      "enableDesc": "Telegram proxy that wraps traffic in fake TLS to bypass DPI",
+      "bindAddress": "Bind Address",
+      "bindAddressPlaceholder": "0.0.0.0",
+      "bindAddressHelp": "IP to bind (0.0.0.0 = all, 127.0.0.1 = localhost only)",
+      "port": "Port",
+      "portHelp": "MTProto listen port (default: 3128)",
+      "fakeSNI": "Fake SNI Domain",
+      "fakeSNIHelp": "Domain to impersonate in TLS handshake (e.g. storage.googleapis.com)",
+      "dcRelay": "DC Relay",
+      "dcRelayHelp": "External relay address (host:port) to reach Telegram DCs when blocked by IP",
+      "relaySetup": "Run on your VPS:\nsocat TCP-LISTEN:{{p1}},fork,reuseaddr TCP:149.154.175.50:443 &\nsocat TCP-LISTEN:{{p2}},fork,reuseaddr TCP:149.154.167.51:443 &\nsocat TCP-LISTEN:{{p3}},fork,reuseaddr TCP:149.154.175.100:443 &\nsocat TCP-LISTEN:{{p4}},fork,reuseaddr TCP:149.154.167.91:443 &\nsocat TCP-LISTEN:{{p5}},fork,reuseaddr TCP:149.154.171.5:443 &",
+      "secret": "Secret",
+      "secretHelp": "Paste this into Telegram MTProto proxy settings",
+      "generateSecret": "Generate Secret",
+      "restartNote": "Restart B4 after changing MTProto settings for changes to take effect."
+    },
     "MSSClamping": {
       "title": "Global MSS Clamping",
       "description": "Clamp TCP Maximum Segment Size to force data fragmentation",
