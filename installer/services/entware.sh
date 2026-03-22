@@ -72,16 +72,16 @@ start() {
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
     if command -v nohup >/dev/null 2>&1; then
-        nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+        nohup \$PROG --config \$CONFIG >/dev/null 2>&1 &
     else
-        \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+        \$PROG --config \$CONFIG >/dev/null 2>&1 &
     fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
         echo "b4 started (PID: \$(cat \$PIDFILE))"
     else
-        echo "b4 failed to start, check /opt/var/log/b4.log"
+        echo "b4 failed to start, check /var/log/b4/errors.log"
         rm -f "\$PIDFILE"
         return 1
     fi
@@ -124,15 +124,7 @@ service_entware_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log /opt/var/log/b4.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"

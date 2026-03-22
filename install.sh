@@ -260,13 +260,13 @@ is_softfloat() {
         _sf_owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
         if [ -n "$_sf_owrt_arch" ]; then
             case "$_sf_owrt_arch" in
-                *_softfloat* | *_nofpu* | *soft*) return 0 ;;
+            *_softfloat* | *_nofpu* | *soft*) return 0 ;;
             esac
             if echo "$_sf_owrt_arch" | grep -qE '_[a-z]*[0-9]+k?f$'; then
                 return 1
             fi
             case "$_sf_owrt_arch" in
-                mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
+            mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
             esac
         fi
     fi
@@ -293,13 +293,13 @@ is_softfloat() {
         [ "$_sf_ei_class" = "2" ] && _sf_flags_off=48
         if [ -n "$_sf_flags_off" ]; then
             if [ "$_sf_ei_data" = "1" ]; then
-                _sf_check_off=$(( _sf_flags_off + 1 ))
+                _sf_check_off=$((_sf_flags_off + 1))
             else
-                _sf_check_off=$(( _sf_flags_off + 2 ))
+                _sf_check_off=$((_sf_flags_off + 2))
             fi
             _sf_flag_byte=$(dd if="$_sf_elf_bin" bs=1 skip="$_sf_check_off" count=1 2>/dev/null | _byte_to_dec)
             if [ -n "$_sf_flag_byte" ]; then
-                [ $(( _sf_flag_byte & 8 )) -ne 0 ] && return 0
+                [ $((_sf_flag_byte & 8)) -ne 0 ] && return 0
                 return 1
             fi
         fi
@@ -1953,6 +1953,20 @@ service_dispatch() {
         return 1
     fi
 }
+
+service_show_crash_log() {
+    _errlog=""
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        _errlog=$(jq -r '.system.logging.error_file // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+    fi
+    [ -z "$_errlog" ] && _errlog="/var/log/b4/errors.log"
+    if [ -s "$_errlog" ]; then
+        log_info "Last log entries from $_errlog:"
+        tail -5 "$_errlog" 2>/dev/null | while IFS= read -r _line; do
+            log_info "  $_line"
+        done
+    fi
+}
 service_entware_install() {
     ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
 
@@ -2021,16 +2035,16 @@ start() {
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
     if command -v nohup >/dev/null 2>&1; then
-        nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+        nohup \$PROG --config \$CONFIG >/dev/null 2>&1 &
     else
-        \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+        \$PROG --config \$CONFIG >/dev/null 2>&1 &
     fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
         echo "b4 started (PID: \$(cat \$PIDFILE))"
     else
-        echo "b4 failed to start, check /opt/var/log/b4.log"
+        echo "b4 failed to start, check /var/log/b4/errors.log"
         rm -f "\$PIDFILE"
         return 1
     fi
@@ -2073,15 +2087,7 @@ service_entware_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log /opt/var/log/b4.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"
@@ -2128,15 +2134,14 @@ command_args="--config ${B4_CONFIG_FILE}"
 command_background=true
 pidfile="/run/b4.pid"
 
-output_log="/var/log/b4.log"
-error_log="/var/log/b4.log"
+output_log="/dev/null"
+error_log="/dev/null"
 
 depend() {
     need net
 }
 
 start_pre() {
-    checkpath --file --owner root:root /var/log/b4.log
     # Load kernel modules
     for mod in nfnetlink nf_conntrack nf_conntrack_netlink xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         modprobe "\$mod" >/dev/null 2>&1 || true
@@ -2168,15 +2173,7 @@ service_openrc_start() {
         return 0
     fi
     log_err "Service crashed immediately after start"
-    for _logf in /var/log/b4/errors.log /var/log/b4.log; do
-        if [ -s "$_logf" ]; then
-            log_info "Last log entries from $_logf:"
-            tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                log_info "  $_line"
-            done
-            break
-        fi
-    done
+    service_show_crash_log
     return 1
 }
 
@@ -2254,15 +2251,7 @@ service_procd_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log /tmp/log/b4.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"
@@ -2364,16 +2353,16 @@ start() {
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
     if command -v nohup >/dev/null 2>&1; then
-        nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+        nohup \$PROG --config \$CONFIG >/dev/null 2>&1 &
     else
-        \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+        \$PROG --config \$CONFIG >/dev/null 2>&1 &
     fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
         echo "b4 started (PID: \$(cat \$PIDFILE))"
     else
-        echo "b4 failed to start, check /var/log/b4.log"
+        echo "b4 failed to start, check /var/log/b4/errors.log"
         rm -f "\$PIDFILE"
         return 1
     fi
@@ -2417,15 +2406,7 @@ service_sysv_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log /var/log/b4.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"
@@ -2525,6 +2506,8 @@ action_install() {
     fi
 
     stop_b4
+
+    rm -f /var/log/b4.log /opt/var/log/b4.log /tmp/log/b4.log 2>/dev/null || true
 
     if [ -f "${B4_BIN_DIR}/${BINARY_NAME}" ]; then
         ts=$(date '+%Y%m%d_%H%M%S')
@@ -2700,7 +2683,7 @@ action_remove() {
     _remove_config_dirs
 
     rm -f /var/run/b4.pid 2>/dev/null || true
-    rm -f /var/log/b4.log 2>/dev/null || true
+    rm -f /var/log/b4.log /opt/var/log/b4.log /tmp/log/b4.log 2>/dev/null || true
     rm -rf /var/log/b4 2>/dev/null || true
 
     echo ""
