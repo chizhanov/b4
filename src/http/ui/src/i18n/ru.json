@@ -220,7 +220,7 @@
       "fakeSNIHelp": "Домен для имитации в TLS (например storage.googleapis.com)",
       "dcRelay": "DC Relay",
       "dcRelayHelp": "Адрес внешнего релея (host:port) для доступа к Telegram DC при блокировке по IP",
-      "relaySetup": "Запустите на VPS:\nsocat TCP-LISTEN:{{p1}},fork,reuseaddr TCP:149.154.175.50:443 &\nsocat TCP-LISTEN:{{p2}},fork,reuseaddr TCP:149.154.167.51:443 &\nsocat TCP-LISTEN:{{p3}},fork,reuseaddr TCP:149.154.175.100:443 &\nsocat TCP-LISTEN:{{p4}},fork,reuseaddr TCP:149.154.167.91:443 &\nsocat TCP-LISTEN:{{p5}},fork,reuseaddr TCP:149.154.171.5:443 &",
+      "relaySetup": "DC Relay требует настройки VPS. <a href=\"https://daniellavrushin.github.io/b4/docs/mtproto\" target=\"_blank\">Инструкция по настройке</a>",
       "secret": "Secret",
       "secretHelp": "Вставьте в настройки MTProto прокси в Telegram",
       "generateSecret": "Сгенерировать Secret",

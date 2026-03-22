@@ -220,7 +220,7 @@
       "fakeSNIHelp": "Domain to impersonate in TLS handshake (e.g. storage.googleapis.com)",
       "dcRelay": "DC Relay",
       "dcRelayHelp": "External relay address (host:port) to reach Telegram DCs when blocked by IP",
-      "relaySetup": "Run on your VPS:\nsocat TCP-LISTEN:{{p1}},fork,reuseaddr TCP:149.154.175.50:443 &\nsocat TCP-LISTEN:{{p2}},fork,reuseaddr TCP:149.154.167.51:443 &\nsocat TCP-LISTEN:{{p3}},fork,reuseaddr TCP:149.154.175.100:443 &\nsocat TCP-LISTEN:{{p4}},fork,reuseaddr TCP:149.154.167.91:443 &\nsocat TCP-LISTEN:{{p5}},fork,reuseaddr TCP:149.154.171.5:443 &",
+      "relaySetup": "DC Relay requires a VPS setup. <a href=\"https://daniellavrushin.github.io/b4/docs/mtproto\" target=\"_blank\">Read the setup guide</a>",
       "secret": "Secret",
       "secretHelp": "Paste this into Telegram MTProto proxy settings",
       "generateSecret": "Generate Secret",

@@ -153,7 +153,7 @@ func DialObfuscatedDC(addr string, dc int, mark uint) (*ObfuscatedConn, error) {
 	verifyTag := binary.LittleEndian.Uint32(verifyBuf[56:60])
 	verifyDC := int16(binary.LittleEndian.Uint16(verifyBuf[60:62]))
 	log.Debugf("MTProto handshake verify: tag=0x%08x dc=%d (expect tag=0x%08x dc=%d)",
-		verifyTag, verifyDC, connectionTagPadded, dc)
+		verifyTag, verifyDC, uint32(connectionTagPadded), dc)
 
 	if tc, ok := conn.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)

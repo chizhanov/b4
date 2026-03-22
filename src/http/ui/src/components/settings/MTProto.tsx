@@ -32,7 +32,7 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fake_sni: sni }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean; secret?: string };
       if (data.success && data.secret) {
         onChange("system.mtproto.secret", data.secret);
       }
@@ -79,34 +79,25 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
         <B4TextField
           label={t("settings.MTProto.fakeSNI")}
           value={config.system.mtproto?.fake_sni || "storage.googleapis.com"}
-          onChange={(e) =>
-            onChange("system.mtproto.fake_sni", e.target.value)
-          }
+          onChange={(e) => onChange("system.mtproto.fake_sni", e.target.value)}
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.fakeSNIHelp")}
         />
         <B4TextField
           label={t("settings.MTProto.dcRelay")}
           value={config.system.mtproto?.dc_relay || ""}
-          onChange={(e) =>
-            onChange("system.mtproto.dc_relay", e.target.value)
-          }
+          onChange={(e) => onChange("system.mtproto.dc_relay", e.target.value)}
           placeholder="vps-ip:7007"
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.dcRelayHelp")}
         />
-        {config.system.mtproto?.enabled && config.system.mtproto?.dc_relay && (() => {
-          const relay = config.system.mtproto.dc_relay;
-          const parts = relay.split(":");
-          const port = Number.parseInt(parts[parts.length - 1]) || 7007;
-          return (
-            <B4Alert severity="warning">
-              {t("settings.MTProto.relaySetup", {
-                p1: port, p2: port + 1, p3: port + 2, p4: port + 3, p5: port + 4,
-              })}
-            </B4Alert>
-          );
-        })()}
+        {config.system.mtproto?.enabled && config.system.mtproto?.dc_relay && (
+          <B4Alert severity="info">
+            <span
+              dangerouslySetInnerHTML={{ __html: t("settings.MTProto.relaySetup") }}
+            />
+          </B4Alert>
+        )}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <B4TextField
             label={t("settings.MTProto.secret")}
@@ -119,16 +110,14 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={handleGenerateSecret}
+            onClick={() => void handleGenerateSecret()}
             disabled={!config.system.mtproto?.enabled || generating}
           >
             {t("settings.MTProto.generateSecret")}
           </Button>
         </Box>
         {config.system.mtproto?.enabled && (
-          <B4Alert severity="info">
-            {t("settings.MTProto.restartNote")}
-          </B4Alert>
+          <B4Alert severity="info">{t("settings.MTProto.restartNote")}</B4Alert>
         )}
       </B4FormGroup>
     </B4Section>
