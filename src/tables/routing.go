@@ -141,10 +141,10 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 		ttl = 3600
 	}
 
-	routeAddIPsToSets(be, cur, ttl, ips)
+	routeAddIPsToSets(be, cur, ttl, ips, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 }
 
-func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP) {
+func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP, ipv4Enabled, ipv6Enabled bool) {
 	v4 := make([]string, 0, len(ips))
 	v6 := make([]string, 0, len(ips))
 	seen4 := make(map[string]struct{}, len(ips))
@@ -152,6 +152,9 @@ func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP) {
 
 	for _, ip := range ips {
 		if ip4 := ip.To4(); ip4 != nil {
+			if !ipv4Enabled {
+				continue
+			}
 			s := ip4.String()
 			if _, ok := seen4[s]; ok {
 				continue
@@ -161,6 +164,9 @@ func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP) {
 			continue
 		}
 		if ip6 := ip.To16(); ip6 != nil {
+			if !ipv6Enabled {
+				continue
+			}
 			s := ip6.String()
 			if _, ok := seen6[s]; ok {
 				continue
@@ -345,7 +351,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 		if ttl <= 0 {
 			ttl = 3600
 		}
-		routeAddIPsToSets(be, cur, ttl, routeCollectStaticHostIPs(set))
+		routeAddIPsToSets(be, cur, ttl, routeCollectStaticHostIPs(set), cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 	}
 
 	routeIfaceAuto = make(map[string]routeState)
