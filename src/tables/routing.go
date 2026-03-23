@@ -465,6 +465,7 @@ func routeDefaultGatewayForIface(iface string, ipv6 bool) string {
 	args = append(args, "route", "show", "default", "dev", iface)
 	out, err := run(args...)
 	if err != nil {
+		log.Tracef("Routing: gateway lookup failed for %s: %v", iface, err)
 		return ""
 	}
 	for _, line := range strings.Split(out, "\n") {
