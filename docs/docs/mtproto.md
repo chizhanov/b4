@@ -1,5 +1,6 @@
 ---
-sidebar_position: 6
+sidebar_position: 11
+title: MTProto Прокси
 ---
 
 # MTProto Прокси для Telegram
