@@ -74,35 +74,20 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph fill ["Наполнение IP-набора"]
-        DNS["DNS-ответ для домена из сета"]
-        STATIC["Статические IP из целей сета"]
-    end
+    DNS["DNS-ответ для домена из сета"] -->|"IP + TTL"| IPSET
+    STATIC["Статические IP из целей сета"] -->|"IP"| IPSET
+    IPSET["IP-набор<br/>(nftables set / ipset)"]
 
-    DNS -->|"IP + TTL"| IPSET["IP-набор<br/>(nftables set / ipset)"]
-    STATIC -->|"IP"| IPSET
+    IPSET --> MARK["PREROUTING / OUTPUT<br/>dst IP в наборе? → fwmark"]
 
-    subgraph pkt ["Обработка пакетов"]
-        direction TB
-        MATCH["Пакет к IP из набора"]
-        MARK["PREROUTING / OUTPUT<br/>Маркировка (fwmark)"]
-        RULE["ip rule<br/>fwmark → таблица маршрутизации"]
-        ROUTE["Таблица маршрутизации<br/>default → выходной интерфейс"]
-        MASQ["POSTROUTING<br/>Masquerade"]
-        IFACE["wg0 / tun0 / ..."]
-    end
-
-    IPSET -.->|"match dst IP"| MARK
-    MATCH --> MARK
-    MARK -->|"fwmark"| RULE
-    RULE --> ROUTE
-    ROUTE --> MASQ
-    MASQ --> IFACE
+    MARK -->|"fwmark"| RULE["ip rule<br/>fwmark → таблица маршрутизации"]
+    RULE --> ROUTE["Таблица маршрутизации<br/>default → выходной интерфейс"]
+    ROUTE --> MASQ["POSTROUTING<br/>Masquerade"]
+    MASQ --> IFACE["wg0 / tun0 / ..."]
 
     style DNS fill:#4a9eff,color:#fff,stroke:none
     style STATIC fill:#4a9eff,color:#fff,stroke:none
     style IPSET fill:#ff9800,color:#fff,stroke:none
-    style MATCH fill:#e91e63,color:#fff,stroke:none
     style MARK fill:#e91e63,color:#fff,stroke:none
     style MASQ fill:#e91e63,color:#fff,stroke:none
     style RULE fill:#9c27b0,color:#fff,stroke:none
