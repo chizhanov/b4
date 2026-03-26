@@ -48,17 +48,14 @@ func (im *IPTablesManager) checkConnbytesSupport(ipt string) error {
 		return fmt.Errorf("xt_connbytes kernel module is not available")
 	}
 
-	testSpec := []string{"-p", "tcp", "-m", "connbytes", "--connbytes-dir", "original",
-		"--connbytes-mode", "packets", "--connbytes", "0:10", "-j", "ACCEPT"}
-	_, err := run(append([]string{ipt, "-w", "-t", "filter", "-A", "INPUT"}, testSpec...)...)
-	if err == nil {
-		_, _ = run(append([]string{ipt, "-w", "-t", "filter", "-D", "INPUT"}, testSpec...)...)
-		im.connbytesSupport[ipt] = true
+	supported := im.probeModuleInTempChain(ipt, []string{"-p", "tcp", "-m", "connbytes", "--connbytes-dir", "original",
+		"--connbytes-mode", "packets", "--connbytes", "0:10", "-j", "ACCEPT"})
+	im.connbytesSupport[ipt] = supported
+	if supported {
 		log.Tracef("IPTABLES[%s]: connbytes module is available", ipt)
 		return nil
 	}
 
-	im.connbytesSupport[ipt] = false
 	return fmt.Errorf("xt_connbytes kernel module is not available for %s — install it with: modprobe xt_connbytes (or apt install xtables-addons-common / linux-modules-extra-$(uname -r))", ipt)
 }
 
@@ -68,28 +65,29 @@ func (im *IPTablesManager) hasMultiportSupport(ipt string) bool {
 		return result
 	}
 
-	// Try to add and immediately remove a test rule using multiport
-	testSpec := []string{"-p", "tcp", "-m", "multiport", "--dports", "80,443", "-j", "ACCEPT"}
-	_, err := run(append([]string{ipt, "-w", "-t", "filter", "-C", "INPUT"}, testSpec...)...)
-	if err == nil {
-		// Rule exists (unlikely), multiport works
-		im.multiportSupport[ipt] = true
-		return true
-	}
-
-	// Try to add the rule
-	_, err = run(append([]string{ipt, "-w", "-t", "filter", "-A", "INPUT"}, testSpec...)...)
-	if err == nil {
-		// Success - remove it immediately
-		_, _ = run(append([]string{ipt, "-w", "-t", "filter", "-D", "INPUT"}, testSpec...)...)
-		im.multiportSupport[ipt] = true
+	supported := im.probeModuleInTempChain(ipt, []string{"-p", "tcp", "-m", "multiport", "--dports", "80,443", "-j", "ACCEPT"})
+	im.multiportSupport[ipt] = supported
+	if supported {
 		log.Tracef("IPTABLES[%s]: multiport module is available", ipt)
-		return true
+	} else {
+		log.Warnf("IPTABLES[%s]: multiport module not available, using individual port rules", ipt)
 	}
+	return supported
+}
 
-	log.Warnf("IPTABLES[%s]: multiport module not available, using individual port rules", ipt)
-	im.multiportSupport[ipt] = false
-	return false
+// probeModuleInTempChain tests whether a rule spec is accepted by iptables
+// using a temporary chain, so the probe never touches live traffic.
+func (im *IPTablesManager) probeModuleInTempChain(ipt string, testSpec []string) bool {
+	const tmpChain = "B4_MODULE_TEST"
+	if _, err := run(ipt, "-w", "-t", "filter", "-N", tmpChain); err != nil {
+		return false
+	}
+	defer func() {
+		_, _ = run(ipt, "-w", "-t", "filter", "-F", tmpChain)
+		_, _ = run(ipt, "-w", "-t", "filter", "-X", tmpChain)
+	}()
+	_, err := run(append([]string{ipt, "-w", "-t", "filter", "-A", tmpChain}, testSpec...)...)
+	return err == nil
 }
 
 func (im *IPTablesManager) existsChain(ipt, table, chain string) bool {
