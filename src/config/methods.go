@@ -99,6 +99,27 @@ func (cfg *Config) ApplyLogLevel(level string) {
 	}
 }
 
+func (c *Config) MainInjectedMark() uint {
+	if c.Queue.Mark == 0 {
+		return DefaultConfig.Queue.Mark
+	}
+	return c.Queue.Mark
+}
+
+func (c *Config) DiscoveryFlowMark() uint {
+	if c.System.Checker.DiscoveryFlowMark != 0 {
+		return c.System.Checker.DiscoveryFlowMark
+	}
+	return c.MainInjectedMark() + 1
+}
+
+func (c *Config) DiscoveryInjectedMark() uint {
+	if c.System.Checker.DiscoveryInjectedMark != 0 {
+		return c.System.Checker.DiscoveryInjectedMark
+	}
+	return c.MainInjectedMark() + 2
+}
+
 func (c *Config) Validate() error {
 	c.System.WebServer.IsEnabled = c.System.WebServer.Port > 0 && c.System.WebServer.Port <= 65535
 
@@ -204,6 +225,20 @@ func (c *Config) Validate() error {
 
 	if c.Queue.StartNum < 0 || c.Queue.StartNum > 65535 {
 		return fmt.Errorf("queue-num must be between 0 and 65535")
+	}
+
+	c.Queue.Mark = c.MainInjectedMark()
+	c.System.Checker.DiscoveryFlowMark = c.DiscoveryFlowMark()
+	c.System.Checker.DiscoveryInjectedMark = c.DiscoveryInjectedMark()
+
+	maxMark := uint64(^uint32(0))
+	if uint64(c.Queue.Mark) > maxMark || uint64(c.System.Checker.DiscoveryFlowMark) > maxMark || uint64(c.System.Checker.DiscoveryInjectedMark) > maxMark {
+		return fmt.Errorf("mark values must be <= %d", maxMark)
+	}
+	if c.Queue.Mark == c.System.Checker.DiscoveryFlowMark ||
+		c.Queue.Mark == c.System.Checker.DiscoveryInjectedMark ||
+		c.System.Checker.DiscoveryFlowMark == c.System.Checker.DiscoveryInjectedMark {
+		return fmt.Errorf("queue marks must be unique: mark, discovery_flow_mark, discovery_injected_mark")
 	}
 
 	for _, set := range c.Sets {

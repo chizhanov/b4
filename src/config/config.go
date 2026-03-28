@@ -89,16 +89,16 @@ var DefaultSetConfig = SetConfig{
 	},
 
 	Fragmentation: FragmentationConfig{
-		Strategy:          "tcp", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
-		ReverseOrder:      true,
-		StrategyPool:      []string{},
-		MiddleSNI:         true,
-		SNIPosition:       1,
-		SNIPositionMax:    0,
-		OOBPosition:       0,
-		OOBPositionMax:    0,
-		OOBChar:           'x',
-		TLSRecordPosition: 0,
+		Strategy:             "tcp", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
+		ReverseOrder:         true,
+		StrategyPool:         []string{},
+		MiddleSNI:            true,
+		SNIPosition:          1,
+		SNIPositionMax:       0,
+		OOBPosition:          0,
+		OOBPositionMax:       0,
+		OOBChar:              'x',
+		TLSRecordPosition:    0,
 		TLSRecordPositionMax: 0,
 
 		SeqOverlapBytes:   []byte{},
@@ -226,11 +226,13 @@ var DefaultConfig = Config{
 		},
 
 		Checker: DiscoveryConfig{
-			DiscoveryTimeoutSec: 5,
-			ConfigPropagateMs:   1500,
-			ReferenceDomain:     "yandex.ru",
-			ReferenceDNS:        []string{"9.9.9.9", "1.1.1.1", "8.8.8.8", "9.9.1.1", "8.8.4.4"},
-			ValidationTries:     1,
+			DiscoveryTimeoutSec:   5,
+			ConfigPropagateMs:     1500,
+			ReferenceDomain:       "yandex.ru",
+			ReferenceDNS:          []string{"9.9.9.9", "1.1.1.1", "8.8.8.8", "9.9.1.1", "8.8.4.4"},
+			ValidationTries:       1,
+			DiscoveryFlowMark:     (1 << 15) + 1,
+			DiscoveryInjectedMark: (1 << 15) + 2,
 		},
 		API: ApiConfig{
 			IPInfoToken: "",

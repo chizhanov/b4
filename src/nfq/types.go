@@ -20,6 +20,7 @@ type Pool struct {
 	configMu    sync.Mutex
 	Dhcp        *dhcp.Manager
 	stopCleanup chan struct{}
+	state       *runtimeState
 }
 
 type PacketInfo struct {
@@ -46,4 +47,6 @@ type Worker struct {
 	sock             *sock.Sender
 	ipToMac          atomic.Value
 	connState        sync.Map
+	tlsCache         *tlsInfoCache
+	connTracker      *connStateTracker
 }

@@ -16,6 +16,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/discovery"
 	b4http "github.com/daniellavrushin/b4/http"
 	"github.com/daniellavrushin/b4/http/handler"
 	"github.com/daniellavrushin/b4/log"
@@ -91,7 +92,28 @@ func runB4(cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed("verbose") {
 		cfg.ApplyLogLevel(verboseFlag)
 	}
+
+	discoveryRT := discovery.NewRuntime()
+
+	handler.SetTablesRefreshFunc(func() error {
+		if cfg.System.Tables.SkipSetup {
+			return nil
+		}
+		if discoveryRT.IsActive() {
+			return fmt.Errorf("tables refresh is blocked while discovery is running")
+		}
+		if err := tables.ClearRules(&cfg); err != nil {
+			return err
+		}
+		if err := tables.AddRules(&cfg); err != nil {
+			return err
+		}
+		tables.RoutingSyncConfig(&cfg)
+		handler.GetMetricsCollector().TablesStatus = tables.DetectBackend(&cfg)
+		return nil
+	})
 	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
+	handler.SetDiscoveryRuntime(discoveryRT)
 	nfq.RoutingHandleDNSFunc = tables.RoutingHandleDNS
 
 	if err := initLogging(&cfg); err != nil {
@@ -143,6 +165,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 			metrics.RecordEvent("error", fmt.Sprintf("Failed to add tables rules: %v", err))
 			return fmt.Errorf("failed to add tables rules: %w", err)
 		}
+		metrics.TablesStatus = tables.DetectBackend(&cfg)
 		metrics.RecordEvent("info", "Tables rules configured successfully")
 	} else {
 		log.Infof("Skipping tables setup (--skip-tables)")
@@ -348,6 +371,8 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 
 		os.Exit(1)
 	}
+
+	nfq.ShutdownDNSRouteRuntime()
 
 	log.CloseErrorFile()
 	log.Flush()

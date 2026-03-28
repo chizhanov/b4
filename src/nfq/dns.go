@@ -64,7 +64,8 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 			domain = strings.ToLower(domain)
 			matcher := w.getMatcher()
 			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet {
-				if txidOK && set.Routing.Enabled {
+				cfg := w.getConfig()
+				if txidOK && set.Routing.Enabled && !cfg.Queue.IsDiscovery {
 					var clientIP, dnsServerIP net.IP
 					switch ipVersion {
 					case IPv4:
@@ -197,7 +198,7 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 				if ips := dns.ParseResponseIPs(payload); len(ips) > 0 {
 					cfg := w.getConfig()
 					if set := cfg.GetSetById(setID); set != nil {
-						if RoutingHandleDNSFunc != nil {
+						if RoutingHandleDNSFunc != nil && !cfg.Queue.IsDiscovery {
 							RoutingHandleDNSFunc(cfg, set, ips)
 						}
 					}
