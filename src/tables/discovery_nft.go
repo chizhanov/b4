@@ -39,8 +39,8 @@ func (b *discoveryNftBackend) apply(flowMark uint, injectedMark uint, queueStart
 		}
 	}
 
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "output", "jump", discoveryChainNFT)
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "prerouting", "jump", discoveryChainNFT)
+	b.deleteDiscoveryRulesFromChain("output", flowMark, injectedMark)
+	b.deleteDiscoveryRulesFromChain("prerouting", flowMark, injectedMark)
 
 	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "jump", discoveryChainNFT); err != nil {
 		return err
@@ -64,14 +64,35 @@ func (b *discoveryNftBackend) apply(flowMark uint, injectedMark uint, queueStart
 }
 
 func (b *discoveryNftBackend) clear(flowMark uint, injectedMark uint) {
-	flowHex := fmt.Sprintf("0x%x", flowMark)
-	injectedHex := fmt.Sprintf("0x%x", injectedMark)
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "output", "meta", "mark", flowHex, "accept")
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "prerouting", "meta", "mark", flowHex, "accept")
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "output", "meta", "mark", injectedHex, "accept")
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "prerouting", "meta", "mark", injectedHex, "accept")
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "output", "jump", discoveryChainNFT)
-	_, _ = run("nft", "delete", "rule", "inet", nftTableName, "prerouting", "jump", discoveryChainNFT)
+	b.deleteDiscoveryRulesFromChain("output", flowMark, injectedMark)
+	b.deleteDiscoveryRulesFromChain("prerouting", flowMark, injectedMark)
 	_, _ = run("nft", "flush", "chain", "inet", nftTableName, discoveryChainNFT)
 	_, _ = run("nft", "delete", "chain", "inet", nftTableName, discoveryChainNFT)
+}
+
+func (b *discoveryNftBackend) deleteDiscoveryRulesFromChain(chain string, flowMark uint, injectedMark uint) {
+	out, err := run("nft", "-a", "list", "chain", "inet", nftTableName, chain)
+	if err != nil {
+		return
+	}
+	flowHex := fmt.Sprintf("0x%08x", flowMark)
+	injectedHex := fmt.Sprintf("0x%08x", injectedMark)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		isDiscovery := strings.Contains(line, "jump "+discoveryChainNFT) ||
+			(strings.Contains(line, flowHex) && strings.Contains(line, "accept")) ||
+			(strings.Contains(line, injectedHex) && strings.Contains(line, "accept"))
+		if !isDiscovery {
+			continue
+		}
+		idx := strings.Index(line, "# handle ")
+		if idx < 0 {
+			continue
+		}
+		handle := strings.TrimSpace(line[idx+len("# handle "):])
+		if handle == "" {
+			continue
+		}
+		_, _ = run("nft", "delete", "rule", "inet", nftTableName, chain, "handle", handle)
+	}
 }
