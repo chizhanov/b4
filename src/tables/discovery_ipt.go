@@ -65,12 +65,12 @@ func (b *discoveryIptBackend) apply(flowMark uint, injectedMark uint, queueStart
 			return err
 		}
 
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-j", discoveryChainIPT)
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-j", discoveryChainIPT)
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "OUTPUT", "-j", discoveryChainIPT)
+		discoveryDelRuleLoop(bin, "PREROUTING", "-j", discoveryChainIPT)
+		discoveryDelRuleLoop(bin, "OUTPUT", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "PREROUTING", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "OUTPUT", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "PREROUTING", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
 
 		if _, err := run(bin, "-w", "-t", "mangle", "-I", "OUTPUT", "1", "-j", discoveryChainIPT); err != nil {
 			return err
@@ -103,13 +103,22 @@ func (b *discoveryIptBackend) clear(flowMark uint, injectedMark uint) {
 		flow := fmt.Sprintf("0x%x/0xffffffff", flowMark)
 		injected := fmt.Sprintf("0x%x/0xffffffff", injectedMark)
 
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "OUTPUT", "-j", discoveryChainIPT)
-		_, _ = run(bin, "-w", "-t", "mangle", "-D", "PREROUTING", "-j", discoveryChainIPT)
+		discoveryDelRuleLoop(bin, "OUTPUT", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "PREROUTING", "-m", "mark", "--mark", flow, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "OUTPUT", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "PREROUTING", "-m", "mark", "--mark", injected, "-j", "ACCEPT")
+		discoveryDelRuleLoop(bin, "OUTPUT", "-j", discoveryChainIPT)
+		discoveryDelRuleLoop(bin, "PREROUTING", "-j", discoveryChainIPT)
 		_, _ = run(bin, "-w", "-t", "mangle", "-F", discoveryChainIPT)
 		_, _ = run(bin, "-w", "-t", "mangle", "-X", discoveryChainIPT)
+	}
+}
+
+func discoveryDelRuleLoop(bin string, chain string, ruleArgs ...string) {
+	args := append([]string{bin, "-w", "-t", "mangle", "-D", chain}, ruleArgs...)
+	for range 100 {
+		if _, err := run(args...); err != nil {
+			return
+		}
 	}
 }

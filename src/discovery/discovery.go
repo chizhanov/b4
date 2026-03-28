@@ -214,10 +214,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	}
 	log.DiscoveryLogf("═══════════════════════════════════════")
 
-	suitesMu.Lock()
-	activeSuites[ds.Id] = ds.CheckSuite
-	suitesMu.Unlock()
-
 	defer func() {
 		log.SetDiscoveryActive(false)
 		ds.EndTime = time.Now()

@@ -67,6 +67,12 @@ func NewCheckSuite(domainInputs []DomainInput) *CheckSuite {
 	}
 }
 
+func RegisterSuite(suite *CheckSuite) {
+	suitesMu.Lock()
+	activeSuites[suite.Id] = suite
+	suitesMu.Unlock()
+}
+
 func GetCheckSuite(id string) (*CheckSuite, bool) {
 	suitesMu.RLock()
 	defer suitesMu.RUnlock()

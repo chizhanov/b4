@@ -131,6 +131,7 @@ func (m *Runtime) StartSuite(cfg *config.Config, urls []string, opts StartSuiteO
 		runtimeState.FlowMark,
 	)
 	m.SetActiveSuiteID(suite.Id)
+	RegisterSuite(suite.CheckSuite)
 
 	go func() {
 		suite.RunDiscovery()
