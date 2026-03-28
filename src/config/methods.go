@@ -228,12 +228,20 @@ func (c *Config) Validate() error {
 	}
 
 	c.Queue.Mark = c.MainInjectedMark()
+
+	maxMark := uint(^uint32(0))
+	if c.Queue.Mark > maxMark {
+		return fmt.Errorf("mark value 0x%x exceeds uint32 max", c.Queue.Mark)
+	}
+	if c.Queue.Mark > maxMark-2 && c.System.Checker.DiscoveryFlowMark == 0 {
+		return fmt.Errorf("mark value 0x%x is too high for auto-derived discovery marks", c.Queue.Mark)
+	}
+
 	c.System.Checker.DiscoveryFlowMark = c.DiscoveryFlowMark()
 	c.System.Checker.DiscoveryInjectedMark = c.DiscoveryInjectedMark()
 
-	maxMark := uint64(^uint32(0))
-	if uint64(c.Queue.Mark) > maxMark || uint64(c.System.Checker.DiscoveryFlowMark) > maxMark || uint64(c.System.Checker.DiscoveryInjectedMark) > maxMark {
-		return fmt.Errorf("mark values must be <= %d", maxMark)
+	if c.System.Checker.DiscoveryFlowMark > maxMark || c.System.Checker.DiscoveryInjectedMark > maxMark {
+		return fmt.Errorf("discovery mark values exceed uint32 max")
 	}
 	if c.Queue.Mark == c.System.Checker.DiscoveryFlowMark ||
 		c.Queue.Mark == c.System.Checker.DiscoveryInjectedMark ||

@@ -226,13 +226,11 @@ var DefaultConfig = Config{
 		},
 
 		Checker: DiscoveryConfig{
-			DiscoveryTimeoutSec:   5,
-			ConfigPropagateMs:     1500,
-			ReferenceDomain:       "yandex.ru",
-			ReferenceDNS:          []string{"9.9.9.9", "1.1.1.1", "8.8.8.8", "9.9.1.1", "8.8.4.4"},
-			ValidationTries:       1,
-			DiscoveryFlowMark:     (1 << 15) + 1,
-			DiscoveryInjectedMark: (1 << 15) + 2,
+			DiscoveryTimeoutSec: 5,
+			ConfigPropagateMs:   1500,
+			ReferenceDomain:     "yandex.ru",
+			ReferenceDNS:        []string{"9.9.9.9", "1.1.1.1", "8.8.8.8", "9.9.1.1", "8.8.4.4"},
+			ValidationTries:     1,
 		},
 		API: ApiConfig{
 			IPInfoToken: "",

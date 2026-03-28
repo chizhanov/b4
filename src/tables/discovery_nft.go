@@ -75,13 +75,13 @@ func (b *discoveryNftBackend) deleteDiscoveryRulesFromChain(chain string, flowMa
 	if err != nil {
 		return
 	}
-	flowHex := fmt.Sprintf("0x%08x", flowMark)
-	injectedHex := fmt.Sprintf("0x%08x", injectedMark)
+	flowToken := "mark " + fmt.Sprintf("0x%x", flowMark)
+	injectedToken := "mark " + fmt.Sprintf("0x%x", injectedMark)
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		isDiscovery := strings.Contains(line, "jump "+discoveryChainNFT) ||
-			(strings.Contains(line, flowHex) && strings.Contains(line, "accept")) ||
-			(strings.Contains(line, injectedHex) && strings.Contains(line, "accept"))
+			(strings.Contains(line, flowToken) && strings.Contains(line, "accept")) ||
+			(strings.Contains(line, injectedToken) && strings.Contains(line, "accept"))
 		if !isDiscovery {
 			continue
 		}
