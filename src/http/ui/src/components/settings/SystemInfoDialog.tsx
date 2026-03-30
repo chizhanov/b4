@@ -97,7 +97,7 @@ interface Diagnostics {
   system: DiagSystem;
   b4: DiagB4;
   kernel: { modules: DiagModule[] };
-  tools: { required: DiagTool[]; optional: DiagTool[] };
+  tools: { firewall: DiagTool[]; required: DiagTool[]; optional: DiagTool[] };
   network: { interfaces: DiagInterface[] };
   firewall: DiagFirewall;
   geodata: DiagGeodata;
@@ -114,22 +114,24 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
 
   const copyJson = () => {
     if (!data) return;
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
-      showSuccess(t("settings.SystemInfo.copied"));
-    });
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(
+      () => showSuccess(t("settings.SystemInfo.copied")),
+      () => setError(t("settings.SystemInfo.copyFailed")),
+    );
   };
 
   useEffect(() => {
     if (!open) return;
+    setData(null);
     setLoading(true);
     setError(null);
     fetch("/api/system/diagnostics")
       .then((r) => r.json())
       .then((json: { success: boolean; data: Diagnostics }) => {
         if (json.success) setData(json.data);
-        else setError("Failed to load diagnostics");
+        else setError(t("settings.SystemInfo.loadFailed"));
       })
-      .catch(() => setError("Failed to connect"))
+      .catch(() => setError(t("settings.SystemInfo.connectFailed")))
       .finally(() => setLoading(false));
   }, [open]);
 
@@ -306,7 +308,7 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
           {row(t("settings.SystemInfo.version"), `${data.b4.version} (${data.b4.commit.substring(0, 7)})`)}
           {row(t("settings.SystemInfo.buildDate"), data.b4.build_date)}
           {row(t("settings.SystemInfo.serviceManager"), data.b4.service_manager)}
-          {data.b4.pid && row("PID", data.b4.pid)}
+          {!!data.b4.pid && row("PID", data.b4.pid)}
           {data.b4.memory_mb && row(t("settings.SystemInfo.memUsage"), `${data.b4.memory_mb} MB`)}
           {data.b4.uptime && row(t("settings.SystemInfo.uptime"), data.b4.uptime)}
 
@@ -374,6 +376,19 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
 
           {sectionTitle(t("settings.SystemInfo.kernelModules"))}
           {data.kernel.modules.map((m) => listRow(m.name, statusChip(m.status)))}
+
+          {sectionTitle(t("settings.SystemInfo.firewallTools"))}
+          {data.tools.firewall.map((tool) => listRow(
+            tool.name,
+            <Stack direction="row" spacing={spacing.sm} alignItems="center">
+              {tool.found && tool.detail && (
+                <Typography variant="caption" sx={{ color: colors.text.secondary, fontSize: "0.65rem" }}>
+                  {tool.detail}
+                </Typography>
+              )}
+              {boolChip(tool.found, "found", "—")}
+            </Stack>,
+          ))}
 
           {sectionTitle(t("settings.SystemInfo.requiredTools"))}
           {data.tools.required.map((tool) => listRow(

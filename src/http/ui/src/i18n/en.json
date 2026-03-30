@@ -409,11 +409,15 @@
       "fwBackend": "Backend",
       "network": "Network",
       "kernelModules": "Kernel Modules",
+      "firewallTools": "Firewall Tools (at least one needed)",
       "requiredTools": "Required Tools",
       "optionalTools": "Optional Tools",
       "storage": "Storage",
       "copyJson": "Copy JSON",
-      "copied": "Diagnostics copied to clipboard"
+      "copied": "Diagnostics copied to clipboard",
+      "copyFailed": "Failed to copy to clipboard",
+      "loadFailed": "Failed to load diagnostics",
+      "connectFailed": "Failed to connect"
     }
   },
   "dashboard": {

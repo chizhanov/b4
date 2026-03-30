@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -129,17 +130,15 @@ func collectB4Info(configPath, serviceManager string) DiagB4 {
 		}
 	}
 
-	if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
-		fields := strings.Fields(string(data))
-		if len(fields) > 21 {
-			startTicks, _ := strconv.ParseUint(fields[21], 10, 64)
-			clkTck := uint64(100)
-			if uptimeData, err := os.ReadFile("/proc/uptime"); err == nil {
-				uptimeFields := strings.Fields(string(uptimeData))
-				if len(uptimeFields) > 0 {
-					sysUptime, _ := strconv.ParseFloat(uptimeFields[0], 64)
-					procSecs := startTicks / clkTck
-					runningSecs := uint64(sysUptime) - procSecs
+	if btime := readBootTime(); btime > 0 {
+		if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
+			fields := strings.Fields(string(data))
+			if len(fields) > 21 {
+				startTicks, _ := strconv.ParseUint(fields[21], 10, 64)
+				clkTck := getClkTck()
+				startSec := btime + int64(startTicks/clkTck)
+				runningSecs := time.Now().Unix() - startSec
+				if runningSecs > 0 {
 					if runningSecs < 3600 {
 						info.Uptime = fmt.Sprintf("%dm", runningSecs/60)
 					} else {
@@ -151,6 +150,58 @@ func collectB4Info(configPath, serviceManager string) DiagB4 {
 	}
 
 	return info
+}
+
+func readBootTime() int64 {
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "btime ") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				v, _ := strconv.ParseInt(fields[1], 10, 64)
+				return v
+			}
+		}
+	}
+	return 0
+}
+
+func getClkTck() uint64 {
+	data, err := os.ReadFile("/proc/self/auxv")
+	if err != nil {
+		return 100
+	}
+	const atClkTck = 17
+	wordSize := 8
+	if runtime.GOARCH == "arm" || runtime.GOARCH == "mipsle" || runtime.GOARCH == "mips" || runtime.GOARCH == "386" {
+		wordSize = 4
+	}
+	entrySize := wordSize * 2
+	for i := 0; i+entrySize <= len(data); i += entrySize {
+		var tag, val uint64
+		if wordSize == 8 {
+			tag = uint64(data[i]) | uint64(data[i+1])<<8 | uint64(data[i+2])<<16 | uint64(data[i+3])<<24 |
+				uint64(data[i+4])<<32 | uint64(data[i+5])<<40 | uint64(data[i+6])<<48 | uint64(data[i+7])<<56
+			val = uint64(data[i+8]) | uint64(data[i+9])<<8 | uint64(data[i+10])<<16 | uint64(data[i+11])<<24 |
+				uint64(data[i+12])<<32 | uint64(data[i+13])<<40 | uint64(data[i+14])<<48 | uint64(data[i+15])<<56
+		} else {
+			tag = uint64(data[i]) | uint64(data[i+1])<<8 | uint64(data[i+2])<<16 | uint64(data[i+3])<<24
+			val = uint64(data[i+4]) | uint64(data[i+5])<<8 | uint64(data[i+6])<<16 | uint64(data[i+7])<<24
+		}
+		if tag == atClkTck && val > 0 {
+			return val
+		}
+		if tag == 0 {
+			break
+		}
+	}
+	return 100
 }
 
 func collectPaths(configPath, errorLog, geositePath, geoipPath string) DiagPaths {
@@ -264,9 +315,9 @@ func testNFQueue(backend string) bool {
 		if _, err := exec.Command("nft", "add", "table", "inet", "_b4_diag_test").CombinedOutput(); err != nil {
 			return false
 		}
+		defer exec.Command("nft", "delete", "table", "inet", "_b4_diag_test").CombinedOutput()
 		exec.Command("nft", "add", "chain", "inet", "_b4_diag_test", "test_chain").CombinedOutput()
 		_, err := exec.Command("nft", "add", "rule", "inet", "_b4_diag_test", "test_chain", "queue", "num", "0").CombinedOutput()
-		exec.Command("nft", "delete", "table", "inet", "_b4_diag_test").CombinedOutput()
 		return err == nil
 
 	case "iptables", "iptables-legacy":
@@ -277,9 +328,11 @@ func testNFQueue(backend string) bool {
 		if _, err := exec.Command(bin, "-w", "-t", "mangle", "-N", "B4_DIAG_TEST").CombinedOutput(); err != nil {
 			return false
 		}
+		defer func() {
+			exec.Command(bin, "-w", "-t", "mangle", "-F", "B4_DIAG_TEST").CombinedOutput()
+			exec.Command(bin, "-w", "-t", "mangle", "-X", "B4_DIAG_TEST").CombinedOutput()
+		}()
 		_, err := exec.Command(bin, "-w", "-t", "mangle", "-A", "B4_DIAG_TEST", "-j", "NFQUEUE", "--queue-num", "0").CombinedOutput()
-		exec.Command(bin, "-w", "-t", "mangle", "-F", "B4_DIAG_TEST").CombinedOutput()
-		exec.Command(bin, "-w", "-t", "mangle", "-X", "B4_DIAG_TEST").CombinedOutput()
 		return err == nil
 	}
 
@@ -394,12 +447,12 @@ func isModuleBuiltin(mod string, paths []string) bool {
 }
 
 func collectTools() DiagTools {
+	firewallTools := []string{"iptables", "iptables-legacy", "nft"}
+
 	required := []struct {
 		name    string
 		missing string
 	}{
-		{"iptables", "firewall required"},
-		{"nft", "nftables"},
 		{"tar", "required for install"},
 		{"curl", "required for download"},
 	}
@@ -417,8 +470,18 @@ func collectTools() DiagTools {
 	}
 
 	result := DiagTools{
+		Firewall: make([]DiagTool, 0, len(firewallTools)),
 		Required: make([]DiagTool, 0, len(required)),
 		Optional: make([]DiagTool, 0, len(optional)),
+	}
+
+	for _, name := range firewallTools {
+		dt := DiagTool{Name: name}
+		if path, err := exec.LookPath(name); err == nil {
+			dt.Found = true
+			dt.Detail = path
+		}
+		result.Firewall = append(result.Firewall, dt)
 	}
 
 	for _, t := range required {

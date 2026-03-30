@@ -409,11 +409,15 @@
       "fwBackend": "Backend",
       "network": "Сеть",
       "kernelModules": "Модули ядра",
+      "firewallTools": "Firewall (нужна хотя бы одна)",
       "requiredTools": "Необходимые утилиты",
       "optionalTools": "Опциональные утилиты",
       "storage": "Хранилище",
       "copyJson": "Копировать JSON",
-      "copied": "Диагностика скопирована в буфер обмена"
+      "copied": "Диагностика скопирована в буфер обмена",
+      "copyFailed": "Не удалось скопировать в буфер обмена",
+      "loadFailed": "Не удалось загрузить диагностику",
+      "connectFailed": "Не удалось подключиться"
     }
   },
   "dashboard": {

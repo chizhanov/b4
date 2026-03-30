@@ -121,6 +121,7 @@ type DiagModule struct {
 }
 
 type DiagTools struct {
+	Firewall []DiagTool `json:"firewall"`
 	Required []DiagTool `json:"required"`
 	Optional []DiagTool `json:"optional"`
 }

@@ -601,7 +601,7 @@ export const DiscoveryRunner = () => {
       {history.length > 0 && (
         <B4Section
           title={t("core.history.title")}
-          description={`${history.length} ${history.length === 1 ? t("discovery.history.domainsTested", { count: history.length }) : t("discovery.history.domainsTested_plural", { count: history.length })}`}
+          description={history.length === 1 ? t("discovery.history.domainsTested", { count: history.length }) : t("discovery.history.domainsTested_plural", { count: history.length })}
           icon={<HistoryIcon />}
         >
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
