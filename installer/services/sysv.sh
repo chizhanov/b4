@@ -25,10 +25,12 @@ start() {
     echo "Starting b4..."
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
-    if command -v nohup >/dev/null 2>&1; then
+    if which nohup >/dev/null 2>&1; then
         nohup \$PROG --config \$CONFIG >/dev/null 2>&1 &
+    elif which setsid >/dev/null 2>&1; then
+        setsid \$PROG --config \$CONFIG >/dev/null 2>&1 &
     else
-        \$PROG --config \$CONFIG >/dev/null 2>&1 &
+        (\$PROG --config \$CONFIG >/dev/null 2>&1 &)
     fi
     echo \$! >"\$PIDFILE"
     sleep 1
