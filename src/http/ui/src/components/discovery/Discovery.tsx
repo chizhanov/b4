@@ -5,25 +5,14 @@ import {
   Stack,
   Typography,
   LinearProgress,
-  Paper,
-  Divider,
-  IconButton,
-  Tooltip,
   CircularProgress,
-  Collapse,
 } from "@mui/material";
 import {
   StartIcon,
   StopIcon,
   RefreshIcon,
-  AddIcon,
-  SpeedIcon,
-  ExpandIcon,
-  CollapseIcon,
-  ImprovementIcon,
   DiscoveryIcon,
   HistoryIcon,
-  DeleteIcon,
   ClearIcon,
 } from "@b4.icons";
 import { colors } from "@design";
@@ -43,7 +32,6 @@ import { useDiscovery } from "@hooks/useDiscovery";
 import {
   StrategyFamily,
   DiscoveryPhase,
-  DiscoveryResult,
   DomainPresetResult,
   HistoryEntry,
 } from "@models/discovery";
@@ -51,6 +39,15 @@ import { useSets } from "@hooks/useSets";
 import { useCaptures } from "@b4.capture";
 import { DiscoveryOptionsPanel, DiscoveryOptions } from "./Options";
 import { useTranslation, Trans } from "react-i18next";
+import {
+  groupByStrategy,
+  formatTimeAgo,
+  StrategyGroup,
+} from "../../utils/discovery";
+import { RunningDomainCard } from "./RunningDomainCard";
+import { StrategyGroupCard } from "./StrategyGroupCard";
+import { FailedDomainCard } from "./FailedDomainCard";
+import { HistoryGroupCard } from "./HistoryGroupCard";
 
 export const DiscoveryRunner = () => {
   const { t } = useTranslation();
@@ -84,28 +81,6 @@ export const DiscoveryRunner = () => {
     combination: t("discovery.phaseNames.combination"),
     dns_detection: t("discovery.phaseNames.dns_detection"),
   };
-
-  function formatTimeAgo(dateStr: string, fallback?: string): string {
-    let date = new Date(dateStr);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) {
-      if (fallback) {
-        date = new Date(fallback);
-      }
-      if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) {
-        return "";
-      }
-    }
-    const diff = Date.now() - date.getTime();
-    if (diff < 0) return t("core.timeAgo.justNow");
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t("core.timeAgo.justNow");
-    if (minutes < 60) return t("core.timeAgo.minutesAgo", { count: minutes });
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t("core.timeAgo.hoursAgo", { count: hours });
-    const days = Math.floor(hours / 24);
-    if (days < 30) return t("core.timeAgo.daysAgo", { count: days });
-    return t("core.timeAgo.monthsAgo", { count: Math.floor(days / 30) });
-  }
 
   const {
     startDiscovery,
@@ -217,6 +192,7 @@ export const DiscoveryRunner = () => {
       setConfig: group.representativeSet,
     });
   };
+
   const toggleDomainExpand = (domain: string) => {
     setExpandedDomains((prev) => {
       const next = new Set(prev);
@@ -338,107 +314,35 @@ export const DiscoveryRunner = () => {
     setExpandedDomains(new Set());
   }, [resetDiscovery]);
 
-  const getDomainStatusBadge = (domainResult: {
-    best_success: boolean;
-    dns_result?: { transport_blocked?: boolean };
-  }) => {
-    if (domainResult.best_success) {
-      return (
-        <B4Badge
-          label={t("discovery.badges.success")}
-          size="small"
-          variant="filled"
-          color="primary"
-        />
-      );
-    }
-    if (running) {
-      return (
-        <B4Badge
-          label={t("discovery.badges.testing")}
-          size="small"
-          variant="outlined"
-          color="primary"
-        />
-      );
-    }
-    if (domainResult.dns_result?.transport_blocked) {
-      return (
-        <B4Badge
-          label={t("discovery.badges.blocked")}
-          size="small"
-          color="info"
-        />
-      );
-    }
-    return <B4Badge label={t("core.failed")} size="small" color="error" />;
+  const handleHistoryApply = (
+    domains: string[],
+    presetName: string,
+    setConfig: B4SetConfig,
+  ) => {
+    setAddDialog({
+      open: true,
+      domain: domains[0],
+      domains,
+      presetName,
+      setConfig,
+    });
   };
 
-  interface StrategyGroup {
-    family: StrategyFamily;
-    domains: {
-      domain: string;
-      speed: number;
-      improvement?: number;
-      presetName: string;
-    }[];
-    minSpeed: number;
-    maxSpeed: number;
-    representativeSet: B4SetConfig | null;
-  }
+  const handleHistoryDelete = (domain: string) => {
+    void (async () => {
+      const res = await deleteHistoryDomain(domain);
+      if (res.success)
+        showSuccess(t("discovery.history.removedFromHistory", { domain }));
+    })();
+  };
 
-  const groupByStrategy = (
-    results: Record<string, DiscoveryResult>,
-  ): { success: StrategyGroup[]; failed: DiscoveryResult[] } => {
-    const groups: Record<string, StrategyGroup> = {};
-    const failed: DiscoveryResult[] = [];
-
-    Object.values(results).forEach((dr) => {
-      if (!dr.best_success || !dr.best_preset) {
-        failed.push(dr);
-        return;
-      }
-      const bestResult = dr.results[dr.best_preset];
-      if (!bestResult) {
-        failed.push(dr);
-        return;
-      }
-      const family = bestResult.family || "none";
-      if (!groups[family]) {
-        groups[family] = {
-          family,
-          domains: [],
-          minSpeed: dr.best_speed,
-          maxSpeed: dr.best_speed,
-          representativeSet: bestResult.set || null,
-        };
-      }
-      groups[family].domains.push({
-        domain: dr.domain,
-        speed: dr.best_speed,
-        improvement: dr.improvement,
-        presetName: dr.best_preset,
-      });
-      if (dr.best_speed > groups[family].maxSpeed) {
-        groups[family].maxSpeed = dr.best_speed;
-        groups[family].representativeSet =
-          bestResult.set || groups[family].representativeSet;
-      }
-      groups[family].minSpeed = Math.min(
-        groups[family].minSpeed,
-        dr.best_speed,
-      );
-    });
-
-    const success = Object.values(groups).sort(
-      (a, b) => b.maxSpeed - a.maxSpeed,
-    );
-    return { success, failed };
+  const handleHistoryRetest = (urls: string[]) => {
+    setCheckUrls(urls);
+    resetDiscovery();
   };
 
   return (
     <Stack spacing={3}>
-      {/* Control Panel */}
       <B4Section
         title={t("discovery.title")}
         description={t("discovery.description")}
@@ -448,7 +352,6 @@ export const DiscoveryRunner = () => {
           <Trans i18nKey="discovery.alert" />
         </B4Alert>
 
-        {/* URL input with chips */}
         <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
           <B4TextField
             label={t("discovery.addDomainLabel")}
@@ -550,7 +453,6 @@ export const DiscoveryRunner = () => {
             </Typography>
           </Box>
         )}
-        {/* Progress indicator */}
         {running && suite && (
           <Box>
             <Box
@@ -606,7 +508,6 @@ export const DiscoveryRunner = () => {
                 },
               }}
             />
-            {/* Discovery Log Panel */}
             <Box sx={{ mt: 3 }}>
               <DiscoveryLogPanel running={running} />
             </Box>
@@ -614,171 +515,38 @@ export const DiscoveryRunner = () => {
         )}
       </B4Section>
 
-      {/* Live per-domain view while running */}
       {running &&
         suite?.domain_discovery_results &&
         Object.keys(suite.domain_discovery_results).length > 0 && (
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
-            gap: 2,
-          }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "1fr 1fr",
+                xl: "1fr 1fr 1fr",
+              },
+              gap: 2,
+            }}
+          >
             {Object.values(suite.domain_discovery_results)
               .sort((a, b) => b.best_speed - a.best_speed)
-              .map((domainResult) => {
-                const totalCount = Object.keys(domainResult.results).length;
-                const isExpanded = expandedDomains.has(domainResult.domain);
-                const successResults = Object.values(domainResult.results)
-                  .filter((r) => r.status === "complete")
-                  .sort((a, b) => b.speed - a.speed);
-                const failedCount = Object.values(domainResult.results)
-                  .filter((r) => r.status === "failed").length;
-
-                return (
-                  <Paper
-                    key={domainResult.domain}
-                    elevation={0}
-                    sx={{
-                      bgcolor: colors.background.paper,
-                      border: `1px solid ${colors.border.default}`,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: colors.accent.primary,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => toggleDomainExpand(domainResult.domain)}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <IconButton size="small">
-                          {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
-                        </IconButton>
-                        <Typography variant="h6" sx={{ color: colors.text.primary }}>
-                          {domainResult.domain}
-                        </Typography>
-                        {getDomainStatusBadge(domainResult)}
-                        <B4Badge
-                          label={`${successResults.length}/${totalCount}`}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                        />
-                      </Box>
-                      {!domainResult.best_success && (
-                        <Typography variant="h6" sx={{ color: colors.text.secondary, fontWeight: 600 }}>
-                          {t("discovery.tested", { count: totalCount })}
-                        </Typography>
-                      )}
-                    </Box>
-                    {domainResult.best_success && (
-                      <Box
-                        sx={{
-                          p: 2,
-                          bgcolor: colors.background.default,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          <SpeedIcon sx={{ color: colors.secondary }} />
-                          <Box>
-                            <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-                              {t("discovery.currentBest")}
-                            </Typography>
-                            <Typography variant="body1" sx={{ color: colors.text.primary, fontWeight: 600 }}>
-                              {domainResult.best_preset}
-                              {domainResult.results[domainResult.best_preset]?.family && (
-                                <B4Badge
-                                  label={familyNames[domainResult.results[domainResult.best_preset].family!]}
-                                  color="primary"
-                                />
-                              )}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Button
-                          variant="contained"
-                          startIcon={addingPreset ? <CircularProgress size={18} color="inherit" /> : <AddIcon />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleAddStrategy(domainResult.domain, domainResult.results[domainResult.best_preset]);
-                          }}
-                          disabled={addingPreset}
-                          sx={{ bgcolor: colors.secondary, color: colors.background.default, "&:hover": { bgcolor: colors.primary } }}
-                        >
-                          {t("discovery.useCurrentBest")}
-                        </Button>
-                      </Box>
-                    )}
-                    {!domainResult.best_success && (
-                      <Box sx={{ p: 2, bgcolor: colors.background.default }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: colors.text.secondary, display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <CircularProgress size={14} sx={{ color: colors.text.secondary }} />
-                          {suite && suite.total_checks > totalCount
-                            ? t("discovery.moreConfigsToTest", { count: suite.total_checks - totalCount })
-                            : t("discovery.testingConfigurations")}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    <Collapse in={isExpanded}>
-                      <Divider sx={{ borderColor: colors.border.default }} />
-                      <Box sx={{ p: 2 }}>
-                        {successResults.length > 0 && (
-                          <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} sx={{ mb: failedCount > 0 ? 1 : 0 }}>
-                            {successResults.map((result, idx) => (
-                              <Box key={result.preset_name} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                <B4Badge
-                                  label={`#${idx + 1} ${result.preset_name}`}
-                                  size="small"
-                                  color={result.preset_name === domainResult.best_preset ? "primary" : "default"}
-                                />
-                                {result.preset_name !== domainResult.best_preset && result.set && (
-                                  <Tooltip title={t("discovery.useThisConfig")}>
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => { void handleAddStrategy(domainResult.domain, result); }}
-                                      disabled={addingPreset}
-                                      sx={{
-                                        p: 0.5,
-                                        bgcolor: colors.background.dark,
-                                        border: `1px solid ${colors.border.light}`,
-                                        "&:hover": { bgcolor: colors.accent.secondary, borderColor: colors.secondary },
-                                      }}
-                                    >
-                                      <AddIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                              </Box>
-                            ))}
-                          </Stack>
-                        )}
-                        {failedCount > 0 && (
-                          <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-                            {t("discovery.failedCount", { count: failedCount })}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Collapse>
-                  </Paper>
-                );
-              })}
+              .map((domainResult) => (
+                <RunningDomainCard
+                  key={domainResult.domain}
+                  domainResult={domainResult}
+                  expanded={expandedDomains.has(domainResult.domain)}
+                  onToggleExpand={() => toggleDomainExpand(domainResult.domain)}
+                  onAddStrategy={handleAddStrategy}
+                  addingPreset={addingPreset}
+                  familyNames={familyNames}
+                  totalSuiteChecks={suite.total_checks}
+                  running={running}
+                />
+              ))}
           </Box>
         )}
 
-      {/* Grouped strategy view when complete */}
       {!running &&
         suite?.domain_discovery_results &&
         Object.keys(suite.domain_discovery_results).length > 0 &&
@@ -786,287 +554,46 @@ export const DiscoveryRunner = () => {
           const { success: strategyGroups, failed: failedDomains } =
             groupByStrategy(suite.domain_discovery_results);
           return (
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
-              gap: 2,
-            }}>
-              {strategyGroups.map((group) => {
-                const isExpanded = expandedDomains.has(group.family);
-
-                return (
-                  <Paper
-                    key={group.family}
-                    elevation={0}
-                    sx={{
-                      bgcolor: colors.background.paper,
-                      border: `1px solid ${colors.border.default}`,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: colors.accent.primary,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => toggleDomainExpand(group.family)}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                      >
-                        <IconButton size="small">
-                          {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
-                        </IconButton>
-                        <Typography
-                          variant="h6"
-                          sx={{ color: colors.text.primary }}
-                        >
-                          {familyNames[group.family]}
-                        </Typography>
-                        <B4Badge
-                          label={t("discovery.badges.success")}
-                          size="small"
-                          variant="filled"
-                          color="primary"
-                        />
-                        <B4Badge
-                          label={t("discovery.grouped.domainCount", {
-                            count: group.domains.length,
-                          })}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                        />
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ p: 2, bgcolor: colors.background.default }}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        flexWrap="wrap"
-                        gap={1}
-                        sx={{ mb: 2 }}
-                      >
-                        {group.domains.map((d) => (
-                          <B4Badge
-                            key={d.domain}
-                            label={d.domain}
-                            size="small"
-                            color="primary"
-                          />
-                        ))}
-                      </Stack>
-                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
-                          variant="contained"
-                          startIcon={
-                            addingPreset ? (
-                              <CircularProgress size={18} color="inherit" />
-                            ) : (
-                              <AddIcon />
-                            )
-                          }
-                          onClick={() => {
-                            void handleAddGroupStrategy(group);
-                          }}
-                          disabled={addingPreset}
-                          sx={{
-                            bgcolor: colors.secondary,
-                            color: colors.background.default,
-                            "&:hover": { bgcolor: colors.primary },
-                          }}
-                        >
-                          {group.domains.length > 1
-                            ? t("discovery.grouped.applyAll", {
-                                count: group.domains.length,
-                              })
-                            : t("discovery.useThisStrategy")}
-                        </Button>
-                      </Box>
-                    </Box>
-
-                    <Collapse in={isExpanded}>
-                      <Divider sx={{ borderColor: colors.border.default }} />
-                      <Box sx={{ p: 2 }}>
-                        <Typography
-                          variant="subtitle2"
-                          sx={{
-                            color: colors.text.secondary,
-                            mb: 1.5,
-                            textTransform: "uppercase",
-                            fontSize: "0.7rem",
-                          }}
-                        >
-                          {t("discovery.grouped.perDomainDetails")}
-                        </Typography>
-                        <Stack spacing={1}>
-                          {group.domains
-                            .sort((a, b) => b.speed - a.speed)
-                            .map((d) => {
-                              const dr =
-                                suite.domain_discovery_results![d.domain];
-                              const successResults = Object.values(dr.results)
-                                .filter((r) => r.status === "complete")
-                                .sort((a, b) => b.speed - a.speed)
-                                .slice(0, 5);
-                              return (
-                                <Box
-                                  key={d.domain}
-                                  sx={{
-                                    p: 1.5,
-                                    bgcolor: colors.background.dark,
-                                    borderRadius: 1,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                      mb: successResults.length > 1 ? 1 : 0,
-                                    }}
-                                  >
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          fontWeight: 600,
-                                          color: colors.text.primary,
-                                        }}
-                                      >
-                                        {d.domain}
-                                      </Typography>
-                                      <B4Badge
-                                        label={d.presetName}
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    </Box>
-                                    {d.improvement && d.improvement > 0 && (
-                                      <B4Badge
-                                        icon={<ImprovementIcon />}
-                                        label={`+${d.improvement.toFixed(0)}%`}
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    )}
-                                  </Box>
-                                  {successResults.length > 1 && (
-                                    <Stack
-                                      direction="row"
-                                      spacing={0.5}
-                                      flexWrap="wrap"
-                                      gap={0.5}
-                                    >
-                                      {successResults
-                                        .filter(
-                                          (r) =>
-                                            r.preset_name !== dr.best_preset,
-                                        )
-                                        .map((result, idx) => (
-                                          <B4Badge
-                                            key={result.preset_name}
-                                            label={`#${idx + 2} ${result.preset_name}`}
-                                            size="small"
-                                            color="default"
-                                          />
-                                        ))}
-                                    </Stack>
-                                  )}
-                                </Box>
-                              );
-                            })}
-                        </Stack>
-                      </Box>
-                    </Collapse>
-                  </Paper>
-                );
-              })}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "1fr 1fr",
+                  xl: "1fr 1fr 1fr",
+                },
+                gap: 2,
+              }}
+            >
+              {strategyGroups.map((group) => (
+                <StrategyGroupCard
+                  key={group.family}
+                  group={group}
+                  expanded={expandedDomains.has(group.family)}
+                  onToggleExpand={() => toggleDomainExpand(group.family)}
+                  onApply={() => handleAddGroupStrategy(group)}
+                  addingPreset={addingPreset}
+                  familyNames={familyNames}
+                  domainResults={suite.domain_discovery_results}
+                />
+              ))}
 
               {failedDomains.map((dr) => (
-                <Paper
+                <FailedDomainCard
                   key={dr.domain}
-                  elevation={0}
-                  sx={{
-                    bgcolor: colors.background.paper,
-                    border: `1px solid ${colors.border.default}`,
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      p: 2,
-                      bgcolor: colors.accent.primary,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{ color: colors.text.primary }}
-                      >
-                        {dr.domain}
-                      </Typography>
-                      {dr.dns_result?.transport_blocked ? (
-                        <B4Badge
-                          label={t("discovery.badges.blocked")}
-                          size="small"
-                          color="info"
-                        />
-                      ) : (
-                        <B4Badge
-                          label={t("core.failed")}
-                          size="small"
-                          color="error"
-                        />
-                      )}
-                    </Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ color: colors.text.secondary, fontWeight: 600 }}
-                    >
-                      {t("discovery.noWorkingConfig")}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ p: 2 }}>
-                    {dr.dns_result?.transport_blocked ? (
-                      <B4Alert severity="warning">
-                        <Trans i18nKey="discovery.transportBlocked" />
-                      </B4Alert>
-                    ) : (
-                      <B4Alert severity="error">
-                        {t("discovery.allFailed", {
-                          count: Object.keys(dr.results).length,
-                        })}
-                      </B4Alert>
-                    )}
-                  </Box>
-                </Paper>
+                  domain={dr.domain}
+                  transportBlocked={dr.dns_result?.transport_blocked}
+                  resultsCount={Object.keys(dr.results).length}
+                />
               ))}
             </Box>
           );
         })()}
 
-      {/* Discovery History */}
       {history.length > 0 && (
         <B4Section
           title={t("core.history.title")}
-          description={`${history.length} ${history.length !== 1 ? t("discovery.history.domainsTested_plural", { count: history.length }) : t("discovery.history.domainsTested", { count: history.length })}`}
+          description={`${history.length} ${history.length === 1 ? t("discovery.history.domainsTested", { count: history.length }) : t("discovery.history.domainsTested_plural", { count: history.length })}`}
           icon={<HistoryIcon />}
         >
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
@@ -1102,6 +629,7 @@ export const DiscoveryRunner = () => {
               if (!familyGroups[family]) familyGroups[family] = [];
               familyGroups[family].push(entry);
             });
+
             const groupEntries = Object.entries(familyGroups).sort(
               ([, a], [, b]) =>
                 Math.max(...b.map((e) => e.best_speed)) -
@@ -1109,357 +637,57 @@ export const DiscoveryRunner = () => {
             );
 
             return (
-              <Box sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
-                gap: 2,
-              }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "1fr 1fr",
+                    xl: "1fr 1fr 1fr",
+                  },
+                  gap: 2,
+                }}
+              >
                 {groupEntries.map(([family, entries]) => {
                   const familyKey = family as StrategyFamily;
-                  const isExpanded = expandedHistoryDomains.has(family);
-                  const fastestEntry = entries.reduce((a, b) =>
-                    a.best_speed > b.best_speed ? a : b,
-                  );
-                  const representativeSet =
-                    fastestEntry.results?.[fastestEntry.best_preset]?.set ||
-                    null;
-
                   return (
-                    <Paper
+                    <HistoryGroupCard
                       key={family}
-                      elevation={0}
-                      sx={{
-                        bgcolor: colors.background.paper,
-                        border: `1px solid ${colors.border.default}`,
-                        borderRadius: 2,
-                        overflow: "hidden",
+                      family={familyKey}
+                      familyName={familyNames[familyKey] ?? family}
+                      entries={entries}
+                      expanded={expandedHistoryDomains.has(family)}
+                      onToggleExpand={() => {
+                        setExpandedHistoryDomains((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(family)) next.delete(family);
+                          else next.add(family);
+                          return next;
+                        });
                       }}
-                    >
-                      <Box
-                        sx={{
-                          p: 2,
-                          bgcolor: colors.accent.primary,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          cursor: "pointer",
-                        }}
-                        onClick={() => {
-                          setExpandedHistoryDomains((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(family)) next.delete(family);
-                            else next.add(family);
-                            return next;
-                          });
-                        }}
-                      >
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <IconButton size="small">
-                            {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
-                          </IconButton>
-                          <Typography
-                            variant="h6"
-                            sx={{ color: colors.text.primary }}
-                          >
-                            {familyNames[familyKey] ?? family}
-                          </Typography>
-                          <B4Badge
-                            label={t("discovery.badges.success")}
-                            size="small"
-                            variant="filled"
-                            color="primary"
-                          />
-                          <B4Badge
-                            label={t("discovery.grouped.domainCount", {
-                              count: entries.length,
-                            })}
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{ color: colors.text.secondary }}
-                          >
-                            {formatTimeAgo(entries[0].end_time, entries[0].start_time)}
-                          </Typography>
-                        </Box>
-                      </Box>
-
-                      <Box sx={{ p: 2, bgcolor: colors.background.default }}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          flexWrap="wrap"
-                          gap={1}
-                          sx={{ mb: 2 }}
-                        >
-                          {entries.map((entry) => (
-                            <B4Badge
-                              key={entry.domain}
-                              label={entry.domain}
-                              size="small"
-                              color="primary"
-                            />
-                          ))}
-                        </Stack>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<RefreshIcon />}
-                            disabled={running}
-                            onClick={() => {
-                              setCheckUrls(entries.map((e) => e.url));
-                              resetDiscovery();
-                            }}
-                            sx={{ textTransform: "none" }}
-                          >
-                            {t("discovery.history.retest")}
-                          </Button>
-                          {representativeSet && (
-                            <Button
-                              variant="contained"
-                              startIcon={
-                                addingPreset ? (
-                                  <CircularProgress size={18} color="inherit" />
-                                ) : (
-                                  <AddIcon />
-                                )
-                              }
-                              onClick={() => {
-                                const allDomains = entries.map((e) => e.domain);
-                                setAddDialog({
-                                  open: true,
-                                  domain: allDomains[0],
-                                  domains: allDomains,
-                                  presetName: familyNames[familyKey] ?? family,
-                                  setConfig: representativeSet,
-                                });
-                              }}
-                              disabled={addingPreset}
-                              sx={{
-                                bgcolor: colors.secondary,
-                                color: colors.background.default,
-                                "&:hover": { bgcolor: colors.primary },
-                              }}
-                            >
-                              {entries.length > 1
-                                ? t("discovery.grouped.applyAll", {
-                                    count: entries.length,
-                                  })
-                                : t("discovery.useThisStrategy")}
-                            </Button>
-                          )}
-                        </Box>
-                      </Box>
-
-                      <Collapse in={isExpanded}>
-                        <Divider sx={{ borderColor: colors.border.default }} />
-                        <Box sx={{ p: 2 }}>
-                          <Stack spacing={1}>
-                            {entries
-                              .sort((a, b) => b.best_speed - a.best_speed)
-                              .map((entry) => (
-                                <Box
-                                  key={entry.domain}
-                                  sx={{
-                                    p: 1.5,
-                                    bgcolor: colors.background.dark,
-                                    borderRadius: 1,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                    }}
-                                  >
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          fontWeight: 600,
-                                          color: colors.text.primary,
-                                        }}
-                                      >
-                                        {entry.domain}
-                                      </Typography>
-                                      <B4Badge
-                                        label={entry.best_preset}
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    </Box>
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      {entry.improvement &&
-                                        entry.improvement > 0 && (
-                                          <B4Badge
-                                            icon={<ImprovementIcon />}
-                                            label={`+${entry.improvement.toFixed(0)}%`}
-                                            size="small"
-                                            color="primary"
-                                          />
-                                        )}
-                                      <Tooltip
-                                        title={t(
-                                          "core.history.removeFromHistory",
-                                        )}
-                                      >
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            void (async () => {
-                                              const res =
-                                                await deleteHistoryDomain(
-                                                  entry.domain,
-                                                );
-                                              if (res.success)
-                                                showSuccess(
-                                                  t(
-                                                    "discovery.history.removedFromHistory",
-                                                    { domain: entry.domain },
-                                                  ),
-                                                );
-                                            })();
-                                          }}
-                                          sx={{
-                                            p: 0.5,
-                                            color: colors.text.secondary,
-                                            "&:hover": {
-                                              color: colors.text.primary,
-                                            },
-                                          }}
-                                        >
-                                          <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                      </Tooltip>
-                                    </Box>
-                                  </Box>
-                                </Box>
-                              ))}
-                          </Stack>
-                        </Box>
-                      </Collapse>
-                    </Paper>
+                      onRetest={handleHistoryRetest}
+                      onApply={handleHistoryApply}
+                      onDeleteEntry={handleHistoryDelete}
+                      addingPreset={addingPreset}
+                      running={running}
+                      timeAgo={formatTimeAgo(
+                        t,
+                        entries[0].end_time,
+                        entries[0].start_time,
+                      )}
+                    />
                   );
                 })}
 
                 {failedEntries.map((entry) => (
-                  <Paper
+                  <FailedDomainCard
                     key={entry.domain}
-                    elevation={0}
-                    sx={{
-                      bgcolor: colors.background.paper,
-                      border: `1px solid ${colors.border.default}`,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        px: 2,
-                        py: 1.5,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
-                      >
-                        <Typography
-                          variant="body1"
-                          sx={{ color: colors.text.primary, fontWeight: 600 }}
-                        >
-                          {entry.domain}
-                        </Typography>
-                        {entry.dns_result?.transport_blocked ? (
-                          <B4Badge
-                            label={t("discovery.badges.blocked")}
-                            size="small"
-                            color="info"
-                          />
-                        ) : (
-                          <B4Badge
-                            label={t("core.failed")}
-                            size="small"
-                            color="error"
-                          />
-                        )}
-                      </Box>
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{ color: colors.text.secondary }}
-                        >
-                          {formatTimeAgo(entry.end_time, entry.start_time)}
-                        </Typography>
-                        <Tooltip title={t("core.history.removeFromHistory")}>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              void (async () => {
-                                const res = await deleteHistoryDomain(
-                                  entry.domain,
-                                );
-                                if (res.success)
-                                  showSuccess(
-                                    t("discovery.history.removedFromHistory", {
-                                      domain: entry.domain,
-                                    }),
-                                  );
-                              })();
-                            }}
-                            sx={{
-                              p: 0.5,
-                              color: colors.text.secondary,
-                              "&:hover": { color: colors.text.primary },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                    <Box sx={{ px: 2, pb: 2 }}>
-                      {entry.dns_result?.transport_blocked ? (
-                        <B4Alert severity="warning">
-                          <Trans i18nKey="discovery.transportBlocked" />
-                        </B4Alert>
-                      ) : (
-                        <B4Alert severity="error">
-                          {t("discovery.allFailed", {
-                            count: Object.keys(entry.results || {}).length,
-                          })}
-                        </B4Alert>
-                      )}
-                    </Box>
-                  </Paper>
+                    domain={entry.domain}
+                    transportBlocked={entry.dns_result?.transport_blocked}
+                    resultsCount={Object.keys(entry.results || {}).length}
+                    timeAgo={formatTimeAgo(t, entry.end_time, entry.start_time)}
+                    onDelete={() => handleHistoryDelete(entry.domain)}
+                  />
                 ))}
               </Box>
             );
