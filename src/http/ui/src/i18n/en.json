@@ -1030,6 +1030,7 @@
     "useThisConfig": "Use this configuration",
     "configs": "{{success}}/{{total}} configs",
     "noWorkingConfig": "No working config",
+    "failedCount": "{{count}} failed",
     "tested": "{{count}} tested...",
     "moreConfigsToTest": "{{count}} more configurations to test...",
     "testingConfigurations": "Testing configurations...",
@@ -1078,9 +1079,16 @@
       "combination": "Combination Test",
       "dns_detection": "DNS Detection"
     },
+    "grouped": {
+      "domainCount_one": "{{count}} domain",
+      "domainCount_other": "{{count}} domains",
+      "applyAll": "Apply to all {{count}} domains",
+      "perDomainDetails": "Per-domain details"
+    },
     "addDialog": {
       "title": "Add Configuration",
       "subtitle": "Strategy: {{name}}",
+      "domainsIncluded": "{{count}} domains included",
       "domainPattern": "Domain Pattern",
       "addTo": "Add to",
       "createNewSet": "Create new set",

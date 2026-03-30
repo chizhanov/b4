@@ -1031,6 +1031,7 @@
     "useThisConfig": "Использовать эту конфигурацию",
     "configs": "{{success}}/{{total}} конфигураций",
     "noWorkingConfig": "Нет рабочей конфигурации",
+    "failedCount": "{{count}} не сработало",
     "tested": "{{count}} протестировано...",
     "moreConfigsToTest": "Ещё {{count}} конфигураций для тестирования...",
     "testingConfigurations": "Тестирование конфигураций...",
@@ -1079,9 +1080,17 @@
       "combination": "Тест комбинаций",
       "dns_detection": "Проверка DNS"
     },
+    "grouped": {
+      "domainCount_one": "{{count}} домен",
+      "domainCount_few": "{{count}} домена",
+      "domainCount_many": "{{count}} доменов",
+      "applyAll": "Применить ко всем {{count}} доменам",
+      "perDomainDetails": "Детали по доменам"
+    },
     "addDialog": {
       "title": "Добавить конфигурацию",
       "subtitle": "Стратегия: {{name}}",
+      "domainsIncluded": "{{count}} доменов включено",
       "domainPattern": "Шаблон домена",
       "addTo": "Добавить в",
       "createNewSet": "Создать новый сет",
