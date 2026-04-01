@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button, Stack, Typography } from "@mui/material";
-import { ImportExportIcon, CopyIcon, DownloadIcon, CheckCircleIcon } from "@b4.icons";
+import {
+  ImportExportIcon,
+  CopyIcon,
+  DownloadIcon,
+  CheckCircleIcon,
+} from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
-import { createDefaultSet, defaultRoutingConfig } from "@models/defaults";
+import { createDefaultSet } from "@models/defaults";
 
 type Obj = Record<string, unknown>;
 
@@ -171,7 +176,10 @@ export const ImportExportSettings = ({
       }
     }
 
-    set.routing = { ...defaultRoutingConfig, ...(set.routing as Record<string, unknown>) };
+    set.routing = {
+      ...createDefaultSet(0).routing,
+      ...(set.routing as Record<string, unknown>),
+    };
 
     return set as unknown as B4SetConfig;
   }
@@ -246,7 +254,7 @@ export const ImportExportSettings = ({
     } catch {
       showError(t("sets.importExport.copyFailed"));
     }
-    document.body.removeChild(textarea);
+    textarea.remove();
   };
 
   return (
@@ -267,9 +275,7 @@ export const ImportExportSettings = ({
         <B4TextField
           label={t("sets.importExport.jsonLabel")}
           value={jsonValue}
-          onFocus={(e) =>
-            (e.target as HTMLTextAreaElement).select()
-          }
+          onFocus={(e) => (e.target as HTMLTextAreaElement).select()}
           onChange={(e) => {
             setJsonValue(e.target.value);
             setImportSuccess(false);

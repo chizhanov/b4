@@ -1,11 +1,45 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func deepCompareFields(prefix string, expected, actual reflect.Value) []string {
+	var diffs []string
+	if expected.Kind() == reflect.Ptr {
+		if expected.IsNil() && actual.IsNil() {
+			return nil
+		}
+		if expected.IsNil() != actual.IsNil() {
+			return []string{fmt.Sprintf("%s: nil mismatch", prefix)}
+		}
+		return deepCompareFields(prefix, expected.Elem(), actual.Elem())
+	}
+	if expected.Kind() == reflect.Struct {
+		t := expected.Type()
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				continue
+			}
+			name := prefix + "." + f.Name
+			if prefix == "" {
+				name = f.Name
+			}
+			diffs = append(diffs, deepCompareFields(name, expected.Field(i), actual.Field(i))...)
+		}
+		return diffs
+	}
+	if !reflect.DeepEqual(expected.Interface(), actual.Interface()) {
+		diffs = append(diffs, fmt.Sprintf("%s: want %v, got %v", prefix, expected.Interface(), actual.Interface()))
+	}
+	return diffs
+}
 
 func TestLoadWithMigration(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -68,6 +102,31 @@ func TestLoadWithMigration(t *testing.T) {
 		}
 		if loaded.Version != CurrentConfigVersion {
 			t.Errorf("version should remain %d", CurrentConfigVersion)
+		}
+	})
+
+	t.Run("sparse roundtrip preserves all set defaults", func(t *testing.T) {
+		path := filepath.Join(tmpDir, "sparse_all.json")
+		cfg := NewConfig()
+		set := NewSetConfig()
+		set.Id = "all-defaults"
+		set.Name = "AllDefaults"
+		cfg.Sets = []*SetConfig{&set}
+		cfg.SaveToFile(path)
+
+		loaded := NewConfig()
+		if err := loaded.LoadWithMigration(path); err != nil {
+			t.Fatalf("LoadWithMigration failed: %v", err)
+		}
+
+		ls := loaded.Sets[0]
+		expected := NewSetConfig()
+		expected.Id = "all-defaults"
+		expected.Name = "AllDefaults"
+
+		diffs := deepCompareFields("", reflect.ValueOf(expected), reflect.ValueOf(*ls))
+		for _, d := range diffs {
+			t.Errorf("%s", d)
 		}
 	})
 }

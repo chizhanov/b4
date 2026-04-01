@@ -1,7 +1,6 @@
 import { Box, Grid, MenuItem, Typography } from "@mui/material";
 import { B4Alert, B4Badge, B4Switch, B4TextField } from "@b4.elements";
 import { B4SetConfig } from "@models/config";
-import { defaultRoutingConfig } from "@models/defaults";
 import { colors } from "@design";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -21,7 +20,7 @@ export const TrafficRouting = ({
   onChange,
 }: TrafficRoutingProps) => {
   const { t } = useTranslation();
-  const routing = config.routing ?? defaultRoutingConfig;
+  const routing = config.routing;
   const selectedIfaceAvailable = availableIfaces.includes(
     routing.egress_interface,
   );

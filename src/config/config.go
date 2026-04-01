@@ -89,7 +89,7 @@ var DefaultSetConfig = SetConfig{
 	},
 
 	Fragmentation: FragmentationConfig{
-		Strategy:             "tcp", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
+		Strategy:             "combo", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
 		ReverseOrder:         true,
 		StrategyPool:         []string{},
 		MiddleSNI:            true,
@@ -105,18 +105,22 @@ var DefaultSetConfig = SetConfig{
 		SeqOverlapPattern: []string{},
 
 		Combo: ComboFragConfig{
-			FirstByteSplit: true,
-			ExtensionSplit: true,
-			ShuffleMode:    "full",
-			FirstDelayMs:   30,
-			JitterMaxUs:    1000,
-			DecoyEnabled:   false,
+			FirstByteSplit:     true,
+			ExtensionSplit:     true,
+			ShuffleMode:        "full",
+			FirstDelayMs:       30,
+			JitterMaxUs:        1000,
+			DecoyEnabled:       false,
+			FakePerSegCount:    1,
+			FakePerSegCountMax: 0,
 		},
 
 		Disorder: DisorderFragConfig{
-			ShuffleMode: "full",
-			MinJitterUs: 1000,
-			MaxJitterUs: 3000,
+			ShuffleMode:        "full",
+			MinJitterUs:        1000,
+			MaxJitterUs:        3000,
+			FakePerSegCount:    1,
+			FakePerSegCountMax: 0,
 		},
 	},
 

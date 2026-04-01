@@ -17,6 +17,16 @@ func toMap(v interface{}) (map[string]interface{}, error) {
 	return m, nil
 }
 
+func isEmptyOrNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	if arr, ok := v.([]interface{}); ok && len(arr) == 0 {
+		return true
+	}
+	return false
+}
+
 func sparsifyMap(current, defaults map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for key, val := range current {
@@ -33,6 +43,10 @@ func sparsifyMap(current, defaults map[string]interface{}) map[string]interface{
 			if len(sparse) > 0 {
 				result[key] = sparse
 			}
+			continue
+		}
+
+		if isEmptyOrNil(val) && isEmptyOrNil(defVal) {
 			continue
 		}
 
@@ -85,6 +99,24 @@ func MarshalSparse(cfg *Config) ([]byte, error) {
 		sparseSets = append(sparseSets, sparseSet)
 	}
 	sparse["sets"] = sparseSets
+
+	if sys, ok := sparse["system"].(map[string]interface{}); ok {
+		if checker, ok := sys["checker"].(map[string]interface{}); ok {
+			mark := cfg.MainInjectedMark()
+			if v, ok := checker["discovery_flow_mark"].(float64); ok && uint(v) == mark+1 {
+				delete(checker, "discovery_flow_mark")
+			}
+			if v, ok := checker["discovery_injected_mark"].(float64); ok && uint(v) == mark+2 {
+				delete(checker, "discovery_injected_mark")
+			}
+			if len(checker) == 0 {
+				delete(sys, "checker")
+			}
+			if len(sys) == 0 {
+				delete(sparse, "system")
+			}
+		}
+	}
 
 	return json.MarshalIndent(sparse, "", "  ")
 }

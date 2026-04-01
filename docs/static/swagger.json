@@ -604,31 +604,6 @@
                 }
             }
         },
-        "/config/reset": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Config"
-                ],
-                "summary": "Reset configuration to defaults",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/detector/cancel/{id}": {
             "delete": {
                 "security": [
@@ -2515,6 +2490,30 @@
                 }
             }
         },
+        "/system/diagnostics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get system diagnostics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.DiagnosticsResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/system/info": {
             "get": {
                 "security": [
@@ -3617,6 +3616,292 @@
                 },
                 "source": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.DiagB4": {
+            "type": "object",
+            "properties": {
+                "build_date": {
+                    "type": "string"
+                },
+                "commit": {
+                    "type": "string"
+                },
+                "config_path": {
+                    "type": "string"
+                },
+                "memory_mb": {
+                    "type": "string"
+                },
+                "pid": {
+                    "type": "integer"
+                },
+                "running": {
+                    "type": "boolean"
+                },
+                "service_manager": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DiagFirewall": {
+            "type": "object",
+            "properties": {
+                "active_rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "backend": {
+                    "type": "string"
+                },
+                "nfqueue_works": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.DiagGeodata": {
+            "type": "object",
+            "properties": {
+                "geoip_configured": {
+                    "type": "boolean"
+                },
+                "geoip_path": {
+                    "type": "string"
+                },
+                "geoip_size": {
+                    "type": "string"
+                },
+                "geosite_configured": {
+                    "type": "boolean"
+                },
+                "geosite_path": {
+                    "type": "string"
+                },
+                "geosite_size": {
+                    "type": "string"
+                },
+                "total_domains": {
+                    "type": "integer"
+                },
+                "total_ips": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.DiagInterface": {
+            "type": "object",
+            "properties": {
+                "addrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "mac": {
+                    "type": "string"
+                },
+                "mtu": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "up": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.DiagKernel": {
+            "type": "object",
+            "properties": {
+                "modules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagModule"
+                    }
+                }
+            }
+        },
+        "handler.DiagModule": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DiagMount": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "writable": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.DiagNetwork": {
+            "type": "object",
+            "properties": {
+                "interfaces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagInterface"
+                    }
+                }
+            }
+        },
+        "handler.DiagPaths": {
+            "type": "object",
+            "properties": {
+                "binary": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "string"
+                },
+                "data_dir": {
+                    "type": "string"
+                },
+                "error_log": {
+                    "type": "string"
+                },
+                "geoip": {
+                    "type": "string"
+                },
+                "geosite": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DiagSystem": {
+            "type": "object",
+            "properties": {
+                "arch": {
+                    "type": "string"
+                },
+                "cpu_cores": {
+                    "type": "integer"
+                },
+                "distro": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "is_docker": {
+                    "type": "boolean"
+                },
+                "kernel": {
+                    "type": "string"
+                },
+                "mem_avail_mb": {
+                    "type": "integer"
+                },
+                "mem_total_mb": {
+                    "type": "integer"
+                },
+                "os": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DiagTool": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "found": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DiagTools": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagTool"
+                    }
+                },
+                "optional": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagTool"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagTool"
+                    }
+                }
+            }
+        },
+        "handler.Diagnostics": {
+            "type": "object",
+            "properties": {
+                "b4": {
+                    "$ref": "#/definitions/handler.DiagB4"
+                },
+                "firewall": {
+                    "$ref": "#/definitions/handler.DiagFirewall"
+                },
+                "geodata": {
+                    "$ref": "#/definitions/handler.DiagGeodata"
+                },
+                "kernel": {
+                    "$ref": "#/definitions/handler.DiagKernel"
+                },
+                "network": {
+                    "$ref": "#/definitions/handler.DiagNetwork"
+                },
+                "paths": {
+                    "$ref": "#/definitions/handler.DiagPaths"
+                },
+                "storage": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.DiagMount"
+                    }
+                },
+                "system": {
+                    "$ref": "#/definitions/handler.DiagSystem"
+                },
+                "tools": {
+                    "$ref": "#/definitions/handler.DiagTools"
+                }
+            }
+        },
+        "handler.DiagnosticsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handler.Diagnostics"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },

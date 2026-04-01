@@ -22,8 +22,14 @@ func TestMarshalSparse_OmitsDefaults(t *testing.T) {
 	var raw map[string]interface{}
 	json.Unmarshal(data, &raw)
 
-	if _, ok := raw["queue"]; ok {
-		t.Error("sparse output should not contain 'queue' when all values are defaults")
+	if queue, hasQueue := raw["queue"].(map[string]interface{}); hasQueue {
+		for key, val := range queue {
+			switch val.(type) {
+			case []interface{}, map[string]interface{}:
+			default:
+				t.Errorf("sparse queue should only contain arrays/objects when defaults, found scalar: %s", key)
+			}
+		}
 	}
 	if _, ok := raw["version"]; !ok {
 		t.Error("sparse output must always contain 'version'")
@@ -193,5 +199,147 @@ func TestSparseSaveLoadRoundtrip_BoolDefaults(t *testing.T) {
 	}
 	if ls.UDP.FilterSTUN != false {
 		t.Error("expected FilterSTUN=false after roundtrip")
+	}
+}
+
+func TestSparseSaveLoadRoundtrip_TrueBoolDefaultsSurvive(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "config.json")
+
+	cfg := NewConfig()
+	set := NewSetConfig()
+	set.Id = "bool-defaults"
+	set.Name = "BoolDefaults"
+	set.Faking.TTL = 8
+	cfg.Sets = []*SetConfig{&set}
+
+	if err := cfg.SaveToFile(path); err != nil {
+		t.Fatalf("SaveToFile failed: %v", err)
+	}
+
+	loaded := NewConfig()
+	if err := loaded.LoadFromFile(path); err != nil {
+		t.Fatalf("LoadFromFile failed: %v", err)
+	}
+
+	ls := loaded.Sets[0]
+	if ls.Faking.SNI != DefaultSetConfig.Faking.SNI {
+		t.Errorf("expected Faking.SNI=%v (default), got %v", DefaultSetConfig.Faking.SNI, ls.Faking.SNI)
+	}
+	if ls.Fragmentation.ReverseOrder != DefaultSetConfig.Fragmentation.ReverseOrder {
+		t.Errorf("expected ReverseOrder=%v (default), got %v", DefaultSetConfig.Fragmentation.ReverseOrder, ls.Fragmentation.ReverseOrder)
+	}
+	if ls.Fragmentation.MiddleSNI != DefaultSetConfig.Fragmentation.MiddleSNI {
+		t.Errorf("expected MiddleSNI=%v (default), got %v", DefaultSetConfig.Fragmentation.MiddleSNI, ls.Fragmentation.MiddleSNI)
+	}
+	if ls.Fragmentation.Combo.FirstByteSplit != DefaultSetConfig.Fragmentation.Combo.FirstByteSplit {
+		t.Errorf("expected FirstByteSplit=%v (default), got %v", DefaultSetConfig.Fragmentation.Combo.FirstByteSplit, ls.Fragmentation.Combo.FirstByteSplit)
+	}
+	if ls.Fragmentation.Combo.ExtensionSplit != DefaultSetConfig.Fragmentation.Combo.ExtensionSplit {
+		t.Errorf("expected ExtensionSplit=%v (default), got %v", DefaultSetConfig.Fragmentation.Combo.ExtensionSplit, ls.Fragmentation.Combo.ExtensionSplit)
+	}
+	if ls.Enabled != DefaultSetConfig.Enabled {
+		t.Errorf("expected Enabled=%v (default), got %v", DefaultSetConfig.Enabled, ls.Enabled)
+	}
+	if ls.UDP.FilterSTUN != DefaultSetConfig.UDP.FilterSTUN {
+		t.Errorf("expected FilterSTUN=%v (default), got %v", DefaultSetConfig.UDP.FilterSTUN, ls.UDP.FilterSTUN)
+	}
+}
+
+func TestMarshalSparse_OmitsDerivedDiscoveryMarks(t *testing.T) {
+	cfg := NewConfig()
+	set := NewSetConfig()
+	set.Id = "mark-test"
+	set.Name = "Marks"
+	set.Enabled = true
+	cfg.Sets = []*SetConfig{&set}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate failed: %v", err)
+	}
+
+	if cfg.System.Checker.DiscoveryFlowMark == 0 {
+		t.Fatal("expected Validate to populate DiscoveryFlowMark")
+	}
+
+	data, err := MarshalSparse(&cfg)
+	if err != nil {
+		t.Fatalf("MarshalSparse failed: %v", err)
+	}
+
+	var raw map[string]interface{}
+	json.Unmarshal(data, &raw)
+
+	if sys, ok := raw["system"].(map[string]interface{}); ok {
+		if checker, ok := sys["checker"].(map[string]interface{}); ok {
+			if _, exists := checker["discovery_flow_mark"]; exists {
+				t.Error("discovery_flow_mark should be omitted when it equals mark+1")
+			}
+			if _, exists := checker["discovery_injected_mark"]; exists {
+				t.Error("discovery_injected_mark should be omitted when it equals mark+2")
+			}
+		}
+	}
+}
+
+func TestMarshalSparse_KeepsCustomDiscoveryMarks(t *testing.T) {
+	cfg := NewConfig()
+	set := NewSetConfig()
+	set.Id = "mark-test"
+	set.Name = "Marks"
+	set.Enabled = true
+	cfg.Sets = []*SetConfig{&set}
+	cfg.System.Checker.DiscoveryFlowMark = 50000
+	cfg.System.Checker.DiscoveryInjectedMark = 60000
+
+	data, err := MarshalSparse(&cfg)
+	if err != nil {
+		t.Fatalf("MarshalSparse failed: %v", err)
+	}
+
+	var raw map[string]interface{}
+	json.Unmarshal(data, &raw)
+
+	sys := raw["system"].(map[string]interface{})
+	checker := sys["checker"].(map[string]interface{})
+	if checker["discovery_flow_mark"] != float64(50000) {
+		t.Errorf("expected custom discovery_flow_mark=50000, got %v", checker["discovery_flow_mark"])
+	}
+	if checker["discovery_injected_mark"] != float64(60000) {
+		t.Errorf("expected custom discovery_injected_mark=60000, got %v", checker["discovery_injected_mark"])
+	}
+}
+
+func TestMarshalSparse_DefaultArraysOmitted(t *testing.T) {
+	cfg := NewConfig()
+	set := NewSetConfig()
+	set.Id = "arr-test"
+	set.Name = "Arrays"
+	cfg.Sets = []*SetConfig{&set}
+
+	data, err := MarshalSparse(&cfg)
+	if err != nil {
+		t.Fatalf("MarshalSparse failed: %v", err)
+	}
+
+	var raw map[string]interface{}
+	json.Unmarshal(data, &raw)
+
+	sets := raw["sets"].([]interface{})
+	setMap := sets[0].(map[string]interface{})
+
+	if targets, ok := setMap["targets"].(map[string]interface{}); ok {
+		arrayFields := []string{"sni_domains", "ip", "geosite_categories", "geoip_categories", "source_devices"}
+		for _, field := range arrayFields {
+			if _, exists := targets[field]; exists {
+				t.Errorf("targets.%s should be omitted when default", field)
+			}
+		}
+	}
+
+	if routing, ok := setMap["routing"].(map[string]interface{}); ok {
+		if _, exists := routing["source_interfaces"]; exists {
+			t.Error("routing.source_interfaces should be omitted when default")
+		}
 	}
 }

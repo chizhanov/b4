@@ -65,16 +65,36 @@ func (c *Config) LoadFromFile(path string) error {
 	if err != nil {
 		return log.Errorf("failed to read config file: %v", err)
 	}
-	err = json.Unmarshal(data, c)
 
-	if err != nil {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return log.Errorf("failed to parse config file: %v", err)
 	}
 
-	ApplyConfigDefaults(c)
-	for _, set := range c.Sets {
-		ApplySetDefaults(set)
+	rawSets := raw["sets"]
+	delete(raw, "sets")
+
+	withoutSets, _ := json.Marshal(raw)
+	if err := json.Unmarshal(withoutSets, c); err != nil {
+		return log.Errorf("failed to parse config file: %v", err)
 	}
+
+	if rawSets != nil {
+		var setArray []json.RawMessage
+		if err := json.Unmarshal(rawSets, &setArray); err != nil {
+			return log.Errorf("failed to parse sets: %v", err)
+		}
+		c.Sets = make([]*SetConfig, 0, len(setArray))
+		for _, rawSet := range setArray {
+			set := NewSetConfig()
+			if err := json.Unmarshal(rawSet, &set); err != nil {
+				return log.Errorf("failed to parse set: %v", err)
+			}
+			c.Sets = append(c.Sets, &set)
+		}
+	}
+
+	ApplyConfigDefaults(c)
 
 	return nil
 }
