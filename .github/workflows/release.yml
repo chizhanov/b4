@@ -162,7 +162,7 @@ jobs:
           fi
 
       - name: Trigger docs deployment
-        if: steps.swagger_commit.outputs.pushed != 'true'
+        if: steps.swagger_commit.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run docs.yml --ref main

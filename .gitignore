@@ -32,6 +32,7 @@ go.work.sum
 # .idea/
 # .vscode/
 
+src/docs/
 src/embed
 
 src/b4
