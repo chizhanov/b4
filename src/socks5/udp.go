@@ -206,7 +206,7 @@ func (s *Server) handleUDPPacket(bindLn *net.UDPConn, srcAddr *net.UDPAddr, dest
 	go s.udpReadFromTarget(bindLn, targetNew, srcAddr, destUDP, connKey, conns)
 
 	// Log metrics once per new connection (not per packet)
-	s.logAndRecordConnection("P-UDP", srcAddr.String(), dest)
+	s.logAndRecordConnection("UDP", srcAddr.String(), dest, "socks5")
 
 	// Send initial data
 	if _, err := targetNew.Write(data); err != nil {

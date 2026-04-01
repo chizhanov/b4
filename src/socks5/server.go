@@ -340,7 +340,7 @@ func (s *Server) handleConnect(conn net.Conn, dest string) error {
 		return fmt.Errorf("clear deadline: %w", err)
 	}
 
-	s.logAndRecordConnection("P-TCP", conn.RemoteAddr().String(), dest)
+	s.logAndRecordConnection("TCP", conn.RemoteAddr().String(), dest, "socks5")
 
 	set := s.resolveSet(dest)
 	if set != nil && set.Fragmentation.Strategy != config.ConfigNone {
@@ -574,9 +574,7 @@ func (s *Server) matchDestinationSet(dest string) (*config.SetConfig, string, *c
 
 // --- Logging and metrics ---
 
-// logAndRecordConnection logs the connection in CSV format for the UI and records metrics.
-// protocol should be "P-TCP" or "P-UDP" for the CSV log; base protocol is used for metrics counters.
-func (s *Server) logAndRecordConnection(protocol, clientAddr, dest string) {
+func (s *Server) logAndRecordConnection(protocol, clientAddr, dest, metadata string) {
 	clientHost, clientPortStr, _ := net.SplitHostPort(clientAddr)
 
 	domain := dest
@@ -587,13 +585,9 @@ func (s *Server) logAndRecordConnection(protocol, clientAddr, dest string) {
 
 	matchedSNI, sniTarget, matchedIP, ipTarget := s.matchDestination(dest)
 
-	// Log in CSV format for UI (matching nfq.go format)
-	// Use net.JoinHostPort for IPv6 safety
-	if !log.IsDiscoveryActive() {
-		source := net.JoinHostPort(clientHost, clientPortStr)
-		destination := net.JoinHostPort(destHost, destPortStr)
-		log.Infof(",%s,%s,%s,%s,%s,%s,", protocol, sniTarget, domain, source, ipTarget, destination)
-	}
+	source := net.JoinHostPort(clientHost, clientPortStr)
+	destination := net.JoinHostPort(destHost, destPortStr)
+	log.LogConnectionStr(protocol, sniTarget, domain, source, ipTarget, destination, "", "", metadata)
 
 	setName := ""
 	if matchedSNI {
@@ -604,15 +598,9 @@ func (s *Server) logAndRecordConnection(protocol, clientAddr, dest string) {
 
 	log.Tracef("SOCKS5 %s relay: %s <-> %s (Set: %s)", protocol, clientAddr, dest, setName)
 
-	// Record using base protocol so TCP/UDP counters work correctly
-	baseProtocol := "TCP"
-	if protocol == "P-UDP" {
-		baseProtocol = "UDP"
-	}
-
 	if m := metrics.GetMetricsCollector(); m != nil {
 		matched := matchedSNI || matchedIP
-		m.RecordConnection(baseProtocol, domain, clientAddr, dest, matched, "", setName, "")
+		m.RecordConnection(protocol, domain, clientAddr, dest, matched, "", setName, "")
 	}
 }
 

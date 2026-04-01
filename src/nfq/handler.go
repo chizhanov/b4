@@ -248,9 +248,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		m.RecordConnection("TCP-DUP", dupHost, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(dupTLS))
 		m.RecordPacket(uint64(len(pkt.raw)))
 
-		if !log.IsDiscoveryActive() {
-			log.Infof(",TCP-DUP,,%s,%s:%d,%s,%s:%d,%s,%s", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS))
-		}
+		log.LogConnection("TCP", "", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS), "tcp-dup")
 
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 			log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
@@ -386,7 +384,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
 		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
-			log.Infof(",TCP,,%s,%s:%d,%s,%s:%d,%s,%s,ipblock-cached", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
+			log.LogConnection("TCP", "", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
 			if pkt.ver == IPv4 {
 				w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
 			} else {
@@ -402,9 +400,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 	}
 
-	if !log.IsDiscoveryActive() {
-		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
-	}
+	log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "")
 
 	{
 		m := metrics.GetMetricsCollector()
@@ -443,7 +439,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 					if ibd.CacheBlockedIPs {
 						w.ipBlocker.AddBlocked(dstIPPort)
 					}
-					log.Infof(",TCP,,%s,%s:%d,%s,%s:%d,%s,%s,ipblock", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
+					log.LogConnection("TCP", "", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
 					m := metrics.GetMetricsCollector()
 					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
 				}
@@ -602,9 +598,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		udpTLS = "1.3" // QUIC is always TLS 1.3
 	}
 
-	if !log.IsDiscoveryActive() {
-		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS)
-	}
+	log.LogConnection("UDP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS, "")
 
 	if isSTUN && set != nil && set.UDP.FilterSTUN {
 		return accept(q, id)

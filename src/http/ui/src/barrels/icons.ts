@@ -73,4 +73,6 @@ export {
   Delete as DeleteIcon,
   Logout as LogoutIcon,
   Inventory2 as BackupIcon,
+  Power as ProxyIcon,
+  Difference as DuplicateIcon,
 } from "@mui/icons-material";
