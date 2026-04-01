@@ -57,10 +57,18 @@ type TCPConfig struct {
 	DropSACK       bool   `json:"drop_sack"`
 	DPortFilter    string `json:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
-	Incoming  IncomingConfig  `json:"incoming"`
-	Desync    DesyncConfig    `json:"desync"`
-	Win       WinConfig       `json:"win"`
-	Duplicate DuplicateConfig `json:"duplicate"`
+	Incoming      IncomingConfig      `json:"incoming"`
+	Desync        DesyncConfig        `json:"desync"`
+	Win           WinConfig           `json:"win"`
+	Duplicate     DuplicateConfig     `json:"duplicate"`
+	IPBlockDetect IPBlockDetectConfig `json:"ip_block_detect"`
+}
+
+type IPBlockDetectConfig struct {
+	Enabled             bool `json:"enabled"`
+	RetransmitThreshold int  `json:"retransmit_threshold"`
+	TimeoutMs           int  `json:"timeout_ms"`
+	CacheBlockedIPs     bool `json:"cache_blocked_ips"`
 }
 
 type WinConfig struct {

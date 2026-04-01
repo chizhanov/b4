@@ -57,7 +57,6 @@ func BuildFakeSNIPacketV6(original []byte, cfg *config.SetConfig) []byte {
 		if ttl == 0 {
 			ttl = 5
 		}
-		// Clamp: fake hop limit must not exceed original
 		if origHL := original[7]; ttl >= origHL && origHL > 1 {
 			ttl = origHL - 1
 		}

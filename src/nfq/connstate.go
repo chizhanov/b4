@@ -86,9 +86,110 @@ type connStateTracker struct {
 
 const maxConnStateEntries = 10000
 
+type ipBlockEntry struct {
+	firstSeen   time.Time
+	retransmits int
+	rstSent     bool
+	host        string
+}
+
+type ipBlockTracker struct {
+	mu      sync.RWMutex
+	conns   map[string]*ipBlockEntry
+	blocked map[string]time.Time
+}
+
+const maxIPBlockEntries = 10000
+const maxIPBlockCacheEntries = 5000
+
+func (t *ipBlockTracker) RecordClientHello(connKey, host string) (int, time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.conns) >= maxIPBlockEntries {
+		now := time.Now()
+		for k, v := range t.conns {
+			if now.Sub(v.firstSeen) > 120*time.Second {
+				delete(t.conns, k)
+			}
+		}
+	}
+
+	entry, exists := t.conns[connKey]
+	if !exists {
+		entry = &ipBlockEntry{
+			firstSeen: time.Now(),
+			host:      host,
+		}
+		t.conns[connKey] = entry
+	}
+	entry.retransmits++
+	return entry.retransmits, entry.firstSeen
+}
+
+func (t *ipBlockTracker) HasRSTSent(connKey string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if entry, ok := t.conns[connKey]; ok {
+		return entry.rstSent
+	}
+	return false
+}
+
+func (t *ipBlockTracker) MarkRSTSent(connKey string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if entry, ok := t.conns[connKey]; ok {
+		entry.rstSent = true
+	}
+}
+
+func (t *ipBlockTracker) IsBlocked(dstIPPort string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.blocked[dstIPPort]
+	if ok {
+		t.blocked[dstIPPort] = time.Now()
+	}
+	return ok
+}
+
+func (t *ipBlockTracker) AddBlocked(dstIPPort string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.blocked) >= maxIPBlockCacheEntries {
+		now := time.Now()
+		for k, v := range t.blocked {
+			if now.Sub(v) > 300*time.Second {
+				delete(t.blocked, k)
+			}
+		}
+	}
+	t.blocked[dstIPPort] = time.Now()
+}
+
+func (t *ipBlockTracker) Cleanup(cacheTTL time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	for k, v := range t.conns {
+		if now.Sub(v.firstSeen) > 120*time.Second {
+			delete(t.conns, k)
+		}
+	}
+	if cacheTTL > 0 {
+		for k, v := range t.blocked {
+			if now.Sub(v) > cacheTTL {
+				delete(t.blocked, k)
+			}
+		}
+	}
+}
+
 type runtimeState struct {
 	tlsCache  *tlsInfoCache
 	connState *connStateTracker
+	ipBlocker *ipBlockTracker
 }
 
 func newRuntimeState() *runtimeState {
@@ -98,6 +199,10 @@ func newRuntimeState() *runtimeState {
 		},
 		connState: &connStateTracker{
 			conns: make(map[string]*connInfo),
+		},
+		ipBlocker: &ipBlockTracker{
+			conns:   make(map[string]*ipBlockEntry),
+			blocked: make(map[string]time.Time),
 		},
 	}
 }

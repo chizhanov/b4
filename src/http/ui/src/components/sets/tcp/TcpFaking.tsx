@@ -358,18 +358,20 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               disabled={!config.faking.sni}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <B4TextField
-              label={t("sets.faking.fakeSni.seqOffset")}
-              type="number"
-              value={config.faking.seq_offset}
-              onChange={(e) =>
-                onChange("faking.seq_offset", Number(e.target.value))
-              }
-              helperText={t("sets.faking.fakeSni.seqOffsetHelper")}
-              disabled={!config.faking.sni}
-            />
-          </Grid>
+          {(config.faking.strategy === "pastseq" || config.faking.strategy === "randseq") && (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <B4TextField
+                label={t("sets.faking.fakeSni.seqOffset")}
+                type="number"
+                value={config.faking.seq_offset}
+                onChange={(e) =>
+                  onChange("faking.seq_offset", Number(e.target.value))
+                }
+                helperText={t("sets.faking.fakeSni.seqOffsetHelper")}
+                disabled={!config.faking.sni}
+              />
+            </Grid>
+          )}
           {config.faking.strategy === "timestamp" && (
             <Grid size={{ xs: 12, md: 4 }}>
               <B4TextField

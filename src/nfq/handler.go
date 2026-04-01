@@ -394,12 +394,63 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if matched {
+		if set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+			ibd := &set.TCP.IPBlockDetect
+			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
+			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
+
+			if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
+				log.Infof(",TCP-IPBLOCK-CACHED,%s,%s:%d,%s,%s:%d", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport)
+				if pkt.ver == IPv4 {
+					w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+				} else {
+					w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+				}
+				m := metrics.GetMetricsCollector()
+				m.RecordConnection("TCP-IPBLOCK", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+				}
+				return 0
+			}
+
+			count, firstSeen := w.ipBlocker.RecordClientHello(ibConnKey, host)
+			threshold := ibd.RetransmitThreshold
+			if threshold <= 0 {
+				threshold = 3
+			}
+			timeout := time.Duration(ibd.TimeoutMs) * time.Millisecond
+			if timeout <= 0 {
+				timeout = 3000 * time.Millisecond
+			}
+
+			if count >= threshold || (count > 1 && time.Since(firstSeen) > timeout) {
+				if !w.ipBlocker.HasRSTSent(ibConnKey) {
+					w.ipBlocker.MarkRSTSent(ibConnKey)
+					if pkt.ver == IPv4 {
+						w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+					} else {
+						w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+					}
+					if ibd.CacheBlockedIPs {
+						w.ipBlocker.AddBlocked(dstIPPort)
+					}
+					log.Infof(",TCP-IPBLOCK,%s,%s:%d,%s,%s:%d,%d retransmits", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, count)
+					m := metrics.GetMetricsCollector()
+					m.RecordConnection("TCP-IPBLOCK", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+				}
+				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+				}
+				return 0
+			}
+		}
+
 		if set.TCP.Incoming.Mode != config.ConfigOff {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			w.connTracker.RegisterOutgoing(connKey, set)
 		}
 
-		// Routing-only sets should keep original packet path without drop+inject.
 		if !needsTCPInjection(set) {
 			return accept(q, id)
 		}
