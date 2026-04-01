@@ -30,10 +30,10 @@ ANDROID_MIN_API := 21
 .PHONY: swagger
 swagger:
 	@echo "Generating Swagger docs..."
-	@cd $(SRC_DIR) && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init --generalInfo main.go --output docs --parseDependency
-	@rm -f $(SRC_DIR)/docs/docs.go
-	@sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $(SRC_DIR)/docs/swagger.json
-	@cp $(SRC_DIR)/docs/swagger.json ./docs/static/swagger.json
+	@cd $(SRC_DIR) && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init --generalInfo main.go --output tools/docs --parseDependency
+	@sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $(SRC_DIR)/tools/docs/swagger.json
+	@cp $(SRC_DIR)/tools/docs/swagger.json ./docs/static/swagger.json
+	@rm -rf $(SRC_DIR)/tools/docs
 	@echo "Swagger spec (v$(VERSION)) copied to docs/static/"
 
 # Build for current platform
