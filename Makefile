@@ -169,8 +169,13 @@ run-docker:
 
 
 
+.PHONY: gen-defaults
+gen-defaults:
+	@echo "Generating UI defaults from Go..."
+	@cd $(SRC_DIR) && go run tools/gendefaults.go
+
 .PHONY: build-ui
-build-ui:
+build-ui: gen-defaults
 	@echo "Building web UI..."
 	@cd src/http/ui && pnpm build
 	@echo "Web UI build complete."
