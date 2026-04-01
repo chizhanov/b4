@@ -4,7 +4,7 @@
         "description": "B4 network packet processor REST API",
         "title": "B4 API",
         "contact": {},
-        "version": "1.47.0"
+        "version": "1.0.0"
     },
     "basePath": "/api",
     "paths": {

@@ -202,6 +202,50 @@ func TestSparseSaveLoadRoundtrip_BoolDefaults(t *testing.T) {
 	}
 }
 
+func TestSparseSaveLoadRoundtrip_TrueBoolDefaultsSurvive(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "config.json")
+
+	cfg := NewConfig()
+	set := NewSetConfig()
+	set.Id = "bool-defaults"
+	set.Name = "BoolDefaults"
+	set.Faking.TTL = 8
+	cfg.Sets = []*SetConfig{&set}
+
+	if err := cfg.SaveToFile(path); err != nil {
+		t.Fatalf("SaveToFile failed: %v", err)
+	}
+
+	loaded := NewConfig()
+	if err := loaded.LoadFromFile(path); err != nil {
+		t.Fatalf("LoadFromFile failed: %v", err)
+	}
+
+	ls := loaded.Sets[0]
+	if ls.Faking.SNI != DefaultSetConfig.Faking.SNI {
+		t.Errorf("expected Faking.SNI=%v (default), got %v", DefaultSetConfig.Faking.SNI, ls.Faking.SNI)
+	}
+	if ls.Fragmentation.ReverseOrder != DefaultSetConfig.Fragmentation.ReverseOrder {
+		t.Errorf("expected ReverseOrder=%v (default), got %v", DefaultSetConfig.Fragmentation.ReverseOrder, ls.Fragmentation.ReverseOrder)
+	}
+	if ls.Fragmentation.MiddleSNI != DefaultSetConfig.Fragmentation.MiddleSNI {
+		t.Errorf("expected MiddleSNI=%v (default), got %v", DefaultSetConfig.Fragmentation.MiddleSNI, ls.Fragmentation.MiddleSNI)
+	}
+	if ls.Fragmentation.Combo.FirstByteSplit != DefaultSetConfig.Fragmentation.Combo.FirstByteSplit {
+		t.Errorf("expected FirstByteSplit=%v (default), got %v", DefaultSetConfig.Fragmentation.Combo.FirstByteSplit, ls.Fragmentation.Combo.FirstByteSplit)
+	}
+	if ls.Fragmentation.Combo.ExtensionSplit != DefaultSetConfig.Fragmentation.Combo.ExtensionSplit {
+		t.Errorf("expected ExtensionSplit=%v (default), got %v", DefaultSetConfig.Fragmentation.Combo.ExtensionSplit, ls.Fragmentation.Combo.ExtensionSplit)
+	}
+	if ls.Enabled != DefaultSetConfig.Enabled {
+		t.Errorf("expected Enabled=%v (default), got %v", DefaultSetConfig.Enabled, ls.Enabled)
+	}
+	if ls.UDP.FilterSTUN != DefaultSetConfig.UDP.FilterSTUN {
+		t.Errorf("expected FilterSTUN=%v (default), got %v", DefaultSetConfig.UDP.FilterSTUN, ls.UDP.FilterSTUN)
+	}
+}
+
 func TestMarshalSparse_OmitsDerivedDiscoveryMarks(t *testing.T) {
 	cfg := NewConfig()
 	set := NewSetConfig()
