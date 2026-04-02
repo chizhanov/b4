@@ -184,6 +184,7 @@ export interface TcpConfig {
   win: WinConfig;
   incoming: IncomingConfig;
   duplicate?: DuplicateConfig;
+  ip_block_detect?: IPBlockDetectConfig;
 }
 
 export interface IncomingConfig {
@@ -331,6 +332,13 @@ export interface RoutingConfig {
 export interface DuplicateConfig {
   enabled: boolean;
   count: number;
+}
+
+export interface IPBlockDetectConfig {
+  enabled: boolean;
+  retransmit_threshold: number;
+  timeout_ms: number;
+  cache_blocked_ips: boolean;
 }
 
 export interface MSSClampConfig {

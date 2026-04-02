@@ -587,7 +587,18 @@
         "dupEnable": "Enable Packet Duplication",
         "dupEnableDesc": "Drop original packet and send multiple copies via raw socket",
         "dupCount": "Copy Count",
-        "dupCountHelper": "Number of packet copies to send (original is dropped)"
+        "dupCountHelper": "Number of packet copies to send (original is dropped)",
+        "ipBlockDetect": "IP Block Detection",
+        "ibdAlert": "Some IPs are blocked entirely by the firewall (not by domain name). When this happens, all bypass strategies fail and the connection hangs for 30+ seconds. This feature detects such blocks and immediately resets the connection, so your device can retry on a different server.",
+        "ibdEnable": "Enable IP Block Detection",
+        "ibdEnableDesc": "Detect IP-level blocks and send RST to force fast retry",
+        "ibdThreshold": "Retransmit Threshold",
+        "ibdThresholdHelper": "How many unanswered retransmissions before declaring the IP blocked",
+        "ibdThresholdWarn": "A low threshold may cause false positives — a single dropped packet or slow server could be mistaken for an IP block.",
+        "ibdTimeout": "Detection Timeout",
+        "ibdTimeoutHelper": "Alternative trigger: time since first attempt with no response",
+        "ibdCache": "Cache Blocked IPs",
+        "ibdCacheDesc": "Remember blocked IPs so future connections get instant reset without waiting"
       },
       "splitting": {
         "header": "Splitting Strategy",

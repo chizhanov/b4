@@ -44,6 +44,7 @@ func NewPool(cfg *config.Config) *Pool {
 		w.ipToMac.Store(make(map[string]string))
 		w.tlsCache = state.tlsCache
 		w.connTracker = state.connState
+		w.ipBlocker = state.ipBlocker
 		ws = append(ws, w)
 	}
 
@@ -72,6 +73,7 @@ func NewPool(cfg *config.Config) *Pool {
 			case <-ticker.C:
 				pool.state.connState.Cleanup()
 				pool.state.tlsCache.Cleanup()
+				pool.state.ipBlocker.Cleanup(300 * time.Second)
 			case <-pool.stopCleanup:
 				return
 			}
@@ -173,6 +175,10 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 		w.matcher.Store(matcher)
 	}
 	return nil
+}
+
+func (p *Pool) GetIPBlockCache() IPBlockCache {
+	return p.state.ipBlocker
 }
 
 func (p *Pool) GetFirstWorkerConfig() *config.Config {

@@ -47,6 +47,15 @@ var migrationRegistry = map[int]MigrationFunc{
 	27: migrateV27to28, // Add per-set routing config
 	28: migrateV28to29, // Add position ranges and strategy pool
 	29: migrateV29to30, // Add MTProto proxy config
+	30: migrateV30to31, // Add TCP IP block detection config
+}
+
+func migrateV30to31(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v30->v31: Adding TCP IP block detection config")
+	for _, set := range c.Sets {
+		set.TCP.IPBlockDetect = DefaultSetConfig.TCP.IPBlockDetect
+	}
+	return nil
 }
 
 func migrateV29to30(c *Config, _ map[string]interface{}) error {

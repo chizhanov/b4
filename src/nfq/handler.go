@@ -248,9 +248,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		m.RecordConnection("TCP-DUP", dupHost, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(dupTLS))
 		m.RecordPacket(uint64(len(pkt.raw)))
 
-		if !log.IsDiscoveryActive() {
-			log.Infof(",TCP-DUP,,%s,%s:%d,%s,%s:%d,%s,%s", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS))
-		}
+		log.LogConnection("TCP", "", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS), "tcp-dup")
 
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 			log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
@@ -306,6 +304,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	host := ""
+	isClientHello := false
 	var tlsVersion uint16
 	matchedIP := st != nil
 	matchedSNI := false
@@ -326,6 +325,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
 		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
+		isClientHello = host != ""
 
 		if host != "" && tlsVersion != 0 {
 			w.tlsCache.Store(connKey, host, tlsVersion)
@@ -379,9 +379,28 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		ipTarget = st.Name
 	}
 
-	if !log.IsDiscoveryActive() {
-		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
+	if matched && isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+		ibd := &set.TCP.IPBlockDetect
+		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
+
+		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
+			log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
+			if pkt.ver == IPv4 {
+				w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+			} else {
+				w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+			}
+			m := metrics.GetMetricsCollector()
+			m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+			m.RecordPacket(uint64(len(pkt.raw)))
+			if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+				log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+			}
+			return 0
+		}
 	}
+
+	log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "")
 
 	{
 		m := metrics.GetMetricsCollector()
@@ -394,12 +413,48 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if matched {
+		if isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+			ibd := &set.TCP.IPBlockDetect
+			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
+			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
+
+			count, firstSeen := w.ipBlocker.RecordClientHello(ibConnKey, host)
+			threshold := ibd.RetransmitThreshold
+			if threshold <= 0 {
+				threshold = 3
+			}
+			timeout := time.Duration(ibd.TimeoutMs) * time.Millisecond
+			if timeout <= 0 {
+				timeout = 3000 * time.Millisecond
+			}
+
+			if count >= threshold || (count > 1 && time.Since(firstSeen) > timeout) {
+				if !w.ipBlocker.HasRSTSent(ibConnKey) {
+					w.ipBlocker.MarkRSTSent(ibConnKey)
+					if pkt.ver == IPv4 {
+						w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+					} else {
+						w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+					}
+					if ibd.CacheBlockedIPs {
+						w.ipBlocker.AddBlocked(dstIPPort)
+					}
+					log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
+					m := metrics.GetMetricsCollector()
+					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+				}
+				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+				}
+				return 0
+			}
+		}
+
 		if set.TCP.Incoming.Mode != config.ConfigOff {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			w.connTracker.RegisterOutgoing(connKey, set)
 		}
 
-		// Routing-only sets should keep original packet path without drop+inject.
 		if !needsTCPInjection(set) {
 			return accept(q, id)
 		}
@@ -543,9 +598,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		udpTLS = "1.3" // QUIC is always TLS 1.3
 	}
 
-	if !log.IsDiscoveryActive() {
-		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS)
-	}
+	log.LogConnection("UDP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS, "")
 
 	if isSTUN && set != nil && set.UDP.FilterSTUN {
 		return accept(q, id)

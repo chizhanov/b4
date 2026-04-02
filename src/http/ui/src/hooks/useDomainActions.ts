@@ -14,7 +14,7 @@ export type SortColumn =
 
 export interface ParsedLog {
   timestamp: string;
-  protocol: "TCP" | "UDP" | "P-TCP" | "P-UDP";
+  protocol: "TCP" | "UDP";
   hostSet: string;
   ipSet: string;
   domain: string;
@@ -24,6 +24,7 @@ export interface ParsedLog {
   sourceAlias: string;
   deviceName: string;
   tls: string;
+  flags: string;
 }
 
 interface DomainModalState {
@@ -114,11 +115,12 @@ function parseSniLogLine(line: string): ParsedLog | null {
     destination,
     sourceAlias,
     tls,
+    flags,
   ] = tokens;
 
   const result: ParsedLog = {
     timestamp: timestamp.replaceAll(" [INFO]", "").trim().split(".")[0],
-    protocol: protocol as "TCP" | "UDP" | "P-TCP" | "P-UDP",
+    protocol: protocol as "TCP" | "UDP",
     hostSet,
     domain,
     source,
@@ -128,6 +130,7 @@ function parseSniLogLine(line: string): ParsedLog | null {
     sourceAlias: sourceAlias ?? "",
     deviceName: "",
     tls: tls ?? "",
+    flags: flags ?? "",
   };
 
   parseCache.set(line, result);
@@ -347,6 +350,7 @@ export function useFilteredLogs(
       log.deviceName,
       log.protocol,
       log.destination,
+      log.flags,
       getAsnForIp(log.destination),
     ];
 

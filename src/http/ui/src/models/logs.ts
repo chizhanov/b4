@@ -9,6 +9,7 @@ export interface ParsedLog {
   deviceName: string;
   destination: string;
   tls: string;
+  flags: string;
   raw: string;
 }
 

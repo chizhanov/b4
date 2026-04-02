@@ -71,6 +71,13 @@ var DefaultSetConfig = SetConfig{
 			Enabled: false,
 			Count:   3,
 		},
+
+		IPBlockDetect: IPBlockDetectConfig{
+			Enabled:             false,
+			RetransmitThreshold: 3,
+			TimeoutMs:           3000,
+			CacheBlockedIPs:     true,
+		},
 	},
 
 	DNS: DNSConfig{

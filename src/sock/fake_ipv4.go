@@ -54,7 +54,6 @@ func BuildFakeSNIPacketV4(original []byte, cfg *config.SetConfig) []byte {
 		if ttl == 0 {
 			ttl = 5
 		}
-		// Clamp: fake TTL must not exceed original TTL
 		if origTTL := original[8]; ttl >= origTTL && origTTL > 1 {
 			ttl = origTTL - 1
 		}

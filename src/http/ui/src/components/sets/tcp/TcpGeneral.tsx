@@ -21,6 +21,12 @@ interface TcpGeneralProps {
 export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
   const { t } = useTranslation();
   const dup = config.tcp.duplicate ?? { enabled: false, count: 3 };
+  const ibd = config.tcp.ip_block_detect ?? {
+    enabled: false,
+    retransmit_threshold: 3,
+    timeout_ms: 3000,
+    cache_blocked_ips: true,
+  };
 
   return (
     <>
@@ -37,7 +43,9 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             min={1}
             max={queue.tcp_conn_bytes_limit}
             step={1}
-            helperText={t("sets.tcp.general.connPacketsMax", { max: queue.tcp_conn_bytes_limit })}
+            helperText={t("sets.tcp.general.connPacketsMax", {
+              max: queue.tcp_conn_bytes_limit,
+            })}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -95,9 +103,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       {/* Packet Duplication */}
       <B4FormHeader label={t("sets.tcp.general.packetDuplication")} />
       <Grid container spacing={3}>
-        <B4Alert>
-          {t("sets.tcp.general.dupAlert")}
-        </B4Alert>
+        <B4Alert>{t("sets.tcp.general.dupAlert")}</B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel
             control={
@@ -126,7 +132,9 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             <B4Slider
               label={t("sets.tcp.general.dupCount")}
               value={dup.count}
-              onChange={(value: number) => onChange("tcp.duplicate.count", value)}
+              onChange={(value: number) =>
+                onChange("tcp.duplicate.count", value)
+              }
               min={1}
               max={10}
               step={1}
@@ -136,6 +144,97 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
         )}
       </Grid>
 
+      {/* IP Block Detection */}
+      <B4FormHeader label={t("sets.tcp.general.ipBlockDetect")} />
+      <Grid container spacing={3}>
+        <B4Alert>{t("sets.tcp.general.ibdAlert")}</B4Alert>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={ibd.enabled}
+                onChange={(e) =>
+                  onChange("tcp.ip_block_detect.enabled", e.target.checked)
+                }
+                color="primary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight={500}>
+                  {t("sets.tcp.general.ibdEnable")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("sets.tcp.general.ibdEnableDesc")}
+                </Typography>
+              </Box>
+            }
+          />
+        </Grid>
+        {ibd.enabled && (
+          <>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <B4Slider
+                label={t("sets.tcp.general.ibdThreshold")}
+                value={ibd.retransmit_threshold}
+                onChange={(value: number) =>
+                  onChange("tcp.ip_block_detect.retransmit_threshold", value)
+                }
+                min={1}
+                max={10}
+                step={1}
+                helperText={t("sets.tcp.general.ibdThresholdHelper")}
+              />
+              {ibd.retransmit_threshold <= 1 && (
+                <B4Alert severity="warning">
+                  {t("sets.tcp.general.ibdThresholdWarn")}
+                </B4Alert>
+              )}
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <B4Slider
+                label={t("sets.tcp.general.ibdTimeout")}
+                value={ibd.timeout_ms}
+                onChange={(value: number) =>
+                  onChange("tcp.ip_block_detect.timeout_ms", value)
+                }
+                min={1000}
+                max={10000}
+                step={500}
+                valueSuffix=" ms"
+                helperText={t("sets.tcp.general.ibdTimeoutHelper")}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={ibd.cache_blocked_ips}
+                    onChange={(e) =>
+                      onChange(
+                        "tcp.ip_block_detect.cache_blocked_ips",
+                        e.target.checked,
+                      )
+                    }
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight={500}>
+                      {t("sets.tcp.general.ibdCache")}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("sets.tcp.general.ibdCacheDesc")}
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Grid>
+          </>
+        )}
+      </Grid>
     </>
   );
 };
