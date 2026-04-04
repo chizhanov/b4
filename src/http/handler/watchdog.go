@@ -101,8 +101,9 @@ func (api *API) handleWatchdogDomains(w http.ResponseWriter, r *http.Request) {
 	cfg := api.getCfg().Clone()
 	domain := strings.ToLower(strings.TrimSpace(req.Domain))
 
+	normalizedDomain := watchdog.ExtractDomain(domain)
 	for _, d := range cfg.System.Checker.Watchdog.Domains {
-		if d == domain {
+		if d == domain || watchdog.ExtractDomain(d) == normalizedDomain {
 			http.Error(w, "domain already in watchdog list", http.StatusConflict)
 			return
 		}
