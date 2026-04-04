@@ -9,6 +9,8 @@ export interface WatchdogDomainStatus {
   cooldown_until?: string;
   last_error?: string;
   last_speed?: number;
+  matched_set?: string;
+  matched_set_id?: string;
 }
 
 export interface WatchdogState {

@@ -93,31 +93,9 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 
 	var existingSet *config.SetConfig
 	for _, set := range cfg.Sets {
-		for _, sni := range set.Targets.SNIDomains {
-			for _, domain := range groupDomains {
-				if sni == domain {
-					existingSet = set
-					break
-				}
-			}
-			if existingSet != nil {
-				break
-			}
-		}
-		if existingSet != nil {
+		if setContainsAnyDomain(set, groupDomains) {
+			existingSet = set
 			break
-		}
-	}
-
-	if existingSet == nil {
-		for _, set := range cfg.Sets {
-			if !set.Enabled {
-				continue
-			}
-			if configsMatch(set, refSet) {
-				existingSet = set
-				break
-			}
 		}
 	}
 
@@ -129,14 +107,7 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 		existingSet.Faking = refSet.Faking
 
 		for _, domain := range groupDomains {
-			found := false
-			for _, sni := range existingSet.Targets.SNIDomains {
-				if sni == domain {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if !domainInSNIList(existingSet.Targets.SNIDomains, domain) {
 				existingSet.Targets.SNIDomains = append(existingSet.Targets.SNIDomains, domain)
 			}
 		}
@@ -157,4 +128,38 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 		log.Infof("[WATCHDOG] %s: created set %q (strategy: %s)",
 			strings.Join(groupDomains, ", "), newSet.Name, refSet.Fragmentation.Strategy)
 	}
+}
+
+func setContainsAnyDomain(set *config.SetConfig, domains []string) bool {
+	matchList := set.Targets.DomainsToMatch
+	if len(matchList) == 0 {
+		matchList = set.Targets.SNIDomains
+	}
+	for _, target := range matchList {
+		for _, domain := range domains {
+			if target == domain || domainMatchesSuffix(domain, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func domainMatchesSuffix(domain, target string) bool {
+	if len(domain) > len(target) && strings.HasSuffix(domain, "."+target) {
+		return true
+	}
+	if len(target) > len(domain) && strings.HasSuffix(target, "."+domain) {
+		return true
+	}
+	return false
+}
+
+func domainInSNIList(sniList []string, domain string) bool {
+	for _, sni := range sniList {
+		if sni == domain {
+			return true
+		}
+	}
+	return false
 }

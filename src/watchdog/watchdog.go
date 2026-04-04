@@ -49,14 +49,28 @@ func (w *Watchdog) GetState() WatchdogState {
 
 	domains := make([]*DomainStatus, 0)
 	for _, d := range cfg.System.Checker.Watchdog.Domains {
-		if st, ok := w.domainStates[d]; ok {
-			domains = append(domains, st)
+		var st *DomainStatus
+		if existing, ok := w.domainStates[d]; ok {
+			st = existing
 		} else {
-			domains = append(domains, &DomainStatus{
+			st = &DomainStatus{
 				Domain: d,
 				Status: StatusHealthy,
-			})
+			}
 		}
+		st.MatchedSet = ""
+		st.MatchedSetId = ""
+		for _, set := range cfg.Sets {
+			if !set.Enabled {
+				continue
+			}
+			if setContainsAnyDomain(set, []string{d}) {
+				st.MatchedSet = set.Name
+				st.MatchedSetId = set.Id
+				break
+			}
+		}
+		domains = append(domains, st)
 	}
 	return WatchdogState{
 		Enabled: cfg.System.Checker.Watchdog.Enabled,

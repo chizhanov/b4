@@ -100,6 +100,13 @@ function DomainRow({
         </Stack>
       </TableCell>
       <TableCell>
+        {domain.matched_set ? (
+          <Chip label={domain.matched_set} size="small" variant="outlined" />
+        ) : (
+          <Typography variant="body2" color="text.secondary">-</Typography>
+        )}
+      </TableCell>
+      <TableCell>
         <Chip
           label={t(`watchdog.status.${domain.status}`)}
           color={statusColor(domain.status)}
@@ -288,6 +295,7 @@ export function WatchdogMonitor() {
               <TableHead>
                 <TableRow>
                   <TableCell>{t("watchdog.table.domain")}</TableCell>
+                  <TableCell>{t("watchdog.table.set")}</TableCell>
                   <TableCell>{t("watchdog.table.status")}</TableCell>
                   <TableCell>{t("watchdog.table.lastCheck")}</TableCell>
                   <TableCell>{t("watchdog.table.failures")}</TableCell>

@@ -1419,6 +1419,7 @@
     },
     "table": {
       "domain": "Domain",
+      "set": "Set",
       "status": "Status",
       "lastCheck": "Last Check",
       "speed": "Speed",

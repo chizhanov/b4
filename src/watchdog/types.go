@@ -15,6 +15,8 @@ type DomainStatus struct {
 	CooldownUntil       time.Time `json:"cooldown_until,omitempty"`
 	LastError           string    `json:"last_error,omitempty"`
 	LastSpeed           float64   `json:"last_speed,omitempty"`
+	MatchedSet          string    `json:"matched_set,omitempty"`
+	MatchedSetId        string    `json:"matched_set_id,omitempty"`
 }
 
 type CheckResult struct {
