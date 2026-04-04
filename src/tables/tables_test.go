@@ -823,6 +823,34 @@ func TestRouteAddIPsToSets(t *testing.T) {
 	})
 }
 
+func TestRouteAddIPsToSets_StaticNoTTL(t *testing.T) {
+	var gotTTL int
+	mock := &mockRouteBackend{
+		addElementsFn: func(setName string, ips []string, ttl int) { gotTTL = ttl },
+	}
+	st := routeState{setV4: "set_v4", setV6: "set_v6"}
+	ips := []net.IP{net.ParseIP("1.2.3.4")}
+	routeAddIPsToSets(mock, st, 0, ips, true, true)
+	if gotTTL != 0 {
+		t.Errorf("expected TTL 0 for static IPs, got %d", gotTTL)
+	}
+}
+
+func TestRoutePeriodicReResolve_SkipsWhenEmpty(t *testing.T) {
+	routeMu.Lock()
+	oldCache := routeRuleCache
+	routeRuleCache = make(map[string]routeState)
+	routeMu.Unlock()
+	defer func() {
+		routeMu.Lock()
+		routeRuleCache = oldCache
+		routeMu.Unlock()
+	}()
+
+	cfg := &config.Config{}
+	RoutingPeriodicReResolve(cfg)
+}
+
 func TestDiscoveryQueueAction(t *testing.T) {
 	t.Run("single thread", func(t *testing.T) {
 		action := discoveryQueueAction(200, 1)
