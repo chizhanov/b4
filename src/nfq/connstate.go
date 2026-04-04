@@ -10,10 +10,12 @@ import (
 )
 
 type connInfo struct {
-	bytesIn   uint64
-	threshold uint64
-	set       *config.SetConfig
-	lastSeen  time.Time
+	bytesIn     uint64
+	threshold   uint64
+	set         *config.SetConfig
+	lastSeen    time.Time
+	serverTTL   uint8
+	ttlRecorded bool
 }
 
 type tlsInfo struct {
@@ -239,6 +241,38 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 		set:      set,
 		lastSeen: time.Now(),
 	}
+}
+
+func (t *connStateTracker) RecordServerTTL(clientIP string, clientPort uint16, serverIP string, serverPort uint16, ttl uint8) {
+	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	info, exists := t.conns[outKey]
+	if !exists {
+		return
+	}
+	if !info.ttlRecorded {
+		info.serverTTL = ttl
+		info.ttlRecorded = true
+	}
+}
+
+func (t *connStateTracker) CheckRSTTTL(clientIP string, clientPort uint16, serverIP string, serverPort uint16, rstTTL uint8, tolerance int) bool {
+	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	info, exists := t.conns[outKey]
+	if !exists {
+		return false
+	}
+	if !info.ttlRecorded {
+		return true
+	}
+	delta := int(rstTTL) - int(info.serverTTL)
+	if delta < 0 {
+		delta = -delta
+	}
+	return delta > tolerance
 }
 
 func (t *connStateTracker) GetSetForIncoming(clientIP string, clientPort uint16, serverIP string, serverPort uint16) *config.SetConfig {
