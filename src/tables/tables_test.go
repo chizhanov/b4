@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/daniellavrushin/b4/config"
 )
@@ -859,9 +860,11 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 		"set-short": {setV4: "sv4_short"},
 		"set-long":  {setV4: "sv4_long"},
 	}
+	shortInitial := time.Now().Add(-10 * time.Minute)
+	longInitial := time.Now().Add(time.Hour)
 	routeLastReResolve = map[string]time.Time{
-		"set-short": time.Now().Add(-10 * time.Minute),
-		"set-long":  time.Now(),
+		"set-short": shortInitial,
+		"set-long":  longInitial,
 	}
 	routeMu.Unlock()
 	defer func() {
@@ -877,9 +880,9 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 				Id:      "set-short",
 				Enabled: true,
 				Routing: config.RoutingConfig{
-					Enabled:          true,
-					EgressInterface:  "wg0",
-					IPTTLSeconds:     600,
+					Enabled:         true,
+					EgressInterface: "wg0",
+					IPTTLSeconds:    600,
 				},
 				Targets: config.TargetsConfig{
 					SNIDomains: []string{"example.com"},
@@ -889,9 +892,9 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 				Id:      "set-long",
 				Enabled: true,
 				Routing: config.RoutingConfig{
-					Enabled:          true,
-					EgressInterface:  "wg0",
-					IPTTLSeconds:     86400,
+					Enabled:         true,
+					EgressInterface: "wg0",
+					IPTTLSeconds:    86400,
 				},
 				Targets: config.TargetsConfig{
 					SNIDomains: []string{"other.com"},
@@ -904,8 +907,8 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	routeMu.Lock()
-	shortUpdated := !routeLastReResolve["set-short"].Equal(oldResolve["set-short"])
-	longUpdated := !routeLastReResolve["set-long"].Equal(oldResolve["set-long"])
+	shortUpdated := !routeLastReResolve["set-short"].Equal(shortInitial)
+	longUpdated := !routeLastReResolve["set-long"].Equal(longInitial)
 	routeMu.Unlock()
 
 	if !shortUpdated {
