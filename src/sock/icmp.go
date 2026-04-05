@@ -5,7 +5,7 @@ import (
 )
 
 func BuildICMPv4Reject(originalPacket []byte, clientIP, serverIP []byte) []byte {
-	if len(originalPacket) < 20 || len(clientIP) < 4 || len(serverIP) < 4 {
+	if len(originalPacket) < 20 || len(clientIP) < 4 || len(serverIP) < 4 || originalPacket[0]>>4 != 4 {
 		return nil
 	}
 	ihl := int(originalPacket[0]&0x0F) * 4
@@ -54,7 +54,7 @@ func BuildICMPv4Reject(originalPacket []byte, clientIP, serverIP []byte) []byte 
 }
 
 func BuildICMPv6Reject(originalPacket []byte, clientIP, serverIP []byte) []byte {
-	if len(originalPacket) < 40 || len(clientIP) < 16 || len(serverIP) < 16 {
+	if len(originalPacket) < 40 || len(clientIP) < 16 || len(serverIP) < 16 || originalPacket[0]>>4 != 6 {
 		return nil
 	}
 	quotedLen := len(originalPacket)
