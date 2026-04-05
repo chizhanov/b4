@@ -79,6 +79,12 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - name: Download UI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: src/http/ui/dist
+
       - name: Run tests
         working-directory: src
         run: go test ./...
