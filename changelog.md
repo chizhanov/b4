@@ -1,6 +1,11 @@
 # B4 - Bye Bye Big Bro
 
-## [1.48.0] - 2026-05-04
+## [1.48.1] - 2026-04-05
+
+- ADDED: **UDP Reject mode** — new option for QUIC/UDP handling that sends an ICMP "Port Unreachable" response instead of silently dropping packets. Clients fall back to TCP almost instantly instead of waiting for timeouts.
+- FIXED: **Duplicate devices in device list** — when a device changed its IP address, both old and new IPs appeared as separate entries. Now only the current IP is shown.
+
+## [1.48.0] - 2026-04-05
 
 - ADDED: **Config backup before update** — B4 now automatically saves a copy of your config file before updating (e.g. `b4.json.bak.v1.47.2`), so you can restore it if needed.
 - ADDED: **Backup reminder in update dialog** — a warning in the update dialog reminds you to download a full backup from Settings → Backup before updating.

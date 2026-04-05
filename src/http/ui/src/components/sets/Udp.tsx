@@ -10,7 +10,7 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
-import { B4SetConfig, QueueConfig } from "@models/config";
+import { B4SetConfig, QueueConfig, UdpMode } from "@models/config";
 import { useTranslation, Trans } from "react-i18next";
 
 interface UdpSettingsProps {
@@ -27,6 +27,11 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
       value: "drop",
       label: t("sets.udp.modeDrop"),
       description: t("sets.udp.modeDropDesc"),
+    },
+    {
+      value: "reject",
+      label: t("sets.udp.modeReject"),
+      description: t("sets.udp.modeRejectDesc"),
     },
     {
       value: "fake",
@@ -173,11 +178,14 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
 
             {/* Info about current mode */}
             <B4Alert>
-              {isFakeMode ? (
-                <Trans i18nKey="sets.udp.fakeModeInfo" />
-              ) : (
-                <Trans i18nKey="sets.udp.dropModeInfo" />
-              )}
+              {(() => {
+                const infoKeys: Record<UdpMode, string> = {
+                  fake: "sets.udp.fakeModeInfo",
+                  reject: "sets.udp.rejectModeInfo",
+                  drop: "sets.udp.dropModeInfo",
+                };
+                return <Trans i18nKey={infoKeys[config.udp.mode] || infoKeys.drop} />;
+              })()}
             </B4Alert>
           </>
         )}

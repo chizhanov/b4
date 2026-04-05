@@ -243,6 +243,8 @@ func (api *API) handleAddPresetAsSet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	set.Targets.IPs = nil
+
 	api.loadTargetsForSetCached(&set)
 	config.ApplySetDefaults(&set)
 
