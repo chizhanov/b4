@@ -120,6 +120,66 @@ func TestBuildICMPv6Reject_Structure(t *testing.T) {
 	}
 }
 
+func TestBuildICMPv6Reject_Checksum(t *testing.T) {
+	origPacket := make([]byte, 48)
+	origPacket[0] = 0x60
+	binary.BigEndian.PutUint16(origPacket[4:6], 8)
+	origPacket[6] = 17
+	origPacket[7] = 64
+
+	clientIP := net.ParseIP("2001:db8::1").To16()
+	serverIP := net.ParseIP("2001:db8::2").To16()
+	copy(origPacket[8:24], clientIP)
+	copy(origPacket[24:40], serverIP)
+
+	icmp := BuildICMPv6Reject(origPacket, clientIP, serverIP)
+
+	var sum uint32
+	for i := 0; i < 16; i += 2 {
+		sum += uint32(binary.BigEndian.Uint16(icmp[8+i : 10+i]))
+	}
+	for i := 0; i < 16; i += 2 {
+		sum += uint32(binary.BigEndian.Uint16(icmp[24+i : 26+i]))
+	}
+	icmpLen := binary.BigEndian.Uint16(icmp[4:6])
+	sum += uint32(icmpLen)
+	sum += 58
+
+	icmpData := icmp[40:]
+	for i := 0; i < len(icmpData)-1; i += 2 {
+		sum += uint32(binary.BigEndian.Uint16(icmpData[i : i+2]))
+	}
+	if len(icmpData)%2 == 1 {
+		sum += uint32(icmpData[len(icmpData)-1]) << 8
+	}
+	for sum > 0xFFFF {
+		sum = (sum >> 16) + (sum & 0xFFFF)
+	}
+	if uint16(sum) != 0xFFFF {
+		t.Fatalf("ICMPv6 checksum verification failed: got 0x%04x, expected 0xFFFF", uint16(sum))
+	}
+}
+
+func TestBuildICMPv4Reject_InvalidInput(t *testing.T) {
+	if BuildICMPv4Reject(nil, net.IPv4(1, 1, 1, 1).To4(), net.IPv4(2, 2, 2, 2).To4()) != nil {
+		t.Fatal("expected nil for nil packet")
+	}
+	if BuildICMPv4Reject(make([]byte, 10), net.IPv4(1, 1, 1, 1).To4(), net.IPv4(2, 2, 2, 2).To4()) != nil {
+		t.Fatal("expected nil for too-short packet")
+	}
+	bad := make([]byte, 20)
+	bad[0] = 0x43
+	if BuildICMPv4Reject(bad, net.IPv4(1, 1, 1, 1).To4(), net.IPv4(2, 2, 2, 2).To4()) != nil {
+		t.Fatal("expected nil for bad IHL")
+	}
+	if BuildICMPv6Reject(nil, make([]byte, 16), make([]byte, 16)) != nil {
+		t.Fatal("expected nil for nil v6 packet")
+	}
+	if BuildICMPv6Reject(make([]byte, 20), make([]byte, 16), make([]byte, 16)) != nil {
+		t.Fatal("expected nil for too-short v6 packet")
+	}
+}
+
 func TestBuildICMPv4Reject_ShortPacket(t *testing.T) {
 	origPacket := make([]byte, 20)
 	origPacket[0] = 0x45
