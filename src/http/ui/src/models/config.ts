@@ -115,7 +115,7 @@ export interface CategoryPreviewConfig {
   preview: string[];
 }
 
-export type UdpMode = "drop" | "fake";
+export type UdpMode = "drop" | "reject" | "fake";
 export type UdpFilterQuicMode = "disabled" | "all" | "parse";
 export type UdpFakingStrategy = "none" | "ttl" | "checksum";
 
