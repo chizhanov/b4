@@ -456,7 +456,8 @@
       "bypassed": "Обход DPI",
       "ofTotal": "от общего",
       "packets": "Пакеты",
-      "pktPerSec": "пак/с"
+      "pktPerSec": "пак/с",
+      "rstDropped": "RST отклонено"
     },
     "health": {
       "running": "Работает",

@@ -456,7 +456,8 @@
       "bypassed": "Bypassed",
       "ofTotal": "of total",
       "packets": "Packets",
-      "pktPerSec": "pkt/s"
+      "pktPerSec": "pkt/s",
+      "rstDropped": "RST Dropped"
     },
     "health": {
       "running": "Running",

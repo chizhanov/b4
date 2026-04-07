@@ -8,6 +8,7 @@ import (
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/metrics"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/florianl/go-nfqueue"
 )
@@ -40,6 +41,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			}
 			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, tolerance); drop {
 				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
+				metrics.GetMetricsCollector().RecordRSTDrop()
 				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 					log.Tracef("failed to drop RST packet %d: %v", id, err)
 				}

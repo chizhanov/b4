@@ -25,6 +25,7 @@ export interface Metrics {
   tcp_connections: number;
   udp_connections: number;
   targeted_connections: number;
+  rst_dropped: number;
   connection_rate: { timestamp: number; value: number }[];
   packet_rate: { timestamp: number; value: number }[];
   top_domains: Record<string, number>;
@@ -89,6 +90,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
       tcp_connections: 0,
       udp_connections: 0,
       targeted_connections: 0,
+      rst_dropped: 0,
       connection_rate: [],
       packet_rate: [],
       top_domains: {},
@@ -126,6 +128,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
     tcp_connections: safeNumber(data.tcp_connections),
     udp_connections: safeNumber(data.udp_connections),
     targeted_connections: safeNumber(data.targeted_connections),
+    rst_dropped: safeNumber(data.rst_dropped),
     connection_rate: Array.isArray(data.connection_rate)
       ? data.connection_rate.map(
           (item: { timestamp: number; value: number }) => ({
