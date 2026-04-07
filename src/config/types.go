@@ -40,11 +40,19 @@ type QueueConfig struct {
 }
 
 type DevicesConfig struct {
-	Enabled      bool             `json:"enabled"`
-	VendorLookup bool             `json:"vendor_lookup"`
-	WhiteIsBlack bool             `json:"wisb"`
-	Mac          []string         `json:"mac"`
-	MSSClamps    []DeviceMSSClamp `json:"mss_clamps"`
+	Enabled      bool     `json:"enabled"`
+	VendorLookup bool     `json:"vendor_lookup"`
+	WhiteIsBlack bool     `json:"wisb"`
+	Devices      []Device `json:"devices"`
+}
+
+type Device struct {
+	MAC      string `json:"mac"`
+	IP       string `json:"ip,omitempty"`
+	Name     string `json:"name,omitempty"`
+	MSSClamp int    `json:"mss_clamp,omitempty"`
+	Selected bool   `json:"selected"`
+	IsManual bool   `json:"is_manual,omitempty"`
 }
 
 type TCPConfig struct {
@@ -332,10 +340,6 @@ type MSSClampConfig struct {
 	Size    int  `json:"size"` // MSS value in bytes (e.g., 88)
 }
 
-type DeviceMSSClamp struct {
-	Mac  string `json:"mac"`
-	Size int    `json:"size"`
-}
 
 type RoutingConfig struct {
 	Enabled          bool     `json:"enabled"`

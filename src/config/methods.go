@@ -224,16 +224,17 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate per-device MSS clamps
-	for i := range c.Queue.Devices.MSSClamps {
-		dc := &c.Queue.Devices.MSSClamps[i]
-		if dc.Size < 10 {
-			dc.Size = 10
+	for i := range c.Queue.Devices.Devices {
+		d := &c.Queue.Devices.Devices[i]
+		d.MAC = strings.ToUpper(strings.TrimSpace(d.MAC))
+		if d.MSSClamp > 0 {
+			if d.MSSClamp < 10 {
+				d.MSSClamp = 10
+			}
+			if d.MSSClamp > 1460 {
+				d.MSSClamp = 1460
+			}
 		}
-		if dc.Size > 1460 {
-			dc.Size = 1460
-		}
-		dc.Mac = strings.ToUpper(strings.TrimSpace(dc.Mac))
 	}
 
 	if c.Queue.Threads < 1 {
@@ -671,16 +672,47 @@ func (cfg *Config) IsTCPPort(port uint16) bool {
 	return cfg.tcpPortMap[port]
 }
 
-// CollectDeviceMSSClamps returns per-device MSS clamp entries grouped by size.
-// The key is the MSS size, and the value is a slice of MAC addresses.
 func (cfg *Config) CollectDeviceMSSClamps() map[int][]string {
 	result := make(map[int][]string)
-	for _, dc := range cfg.Queue.Devices.MSSClamps {
-		mac := strings.ToUpper(strings.TrimSpace(dc.Mac))
-		if mac == "" || dc.Size <= 0 {
+	for _, d := range cfg.Queue.Devices.Devices {
+		mac := strings.ToUpper(strings.TrimSpace(d.MAC))
+		if mac == "" || d.MSSClamp <= 0 {
 			continue
 		}
-		result[dc.Size] = append(result[dc.Size], mac)
+		result[d.MSSClamp] = append(result[d.MSSClamp], mac)
+	}
+	return result
+}
+
+func (dc *DevicesConfig) SelectedMACs() []string {
+	var macs []string
+	for _, d := range dc.Devices {
+		if d.Selected {
+			mac := strings.ToUpper(strings.TrimSpace(d.MAC))
+			if mac != "" {
+				macs = append(macs, mac)
+			}
+		}
+	}
+	return macs
+}
+
+func (dc *DevicesConfig) FindByMAC(mac string) *Device {
+	mac = strings.ToUpper(strings.TrimSpace(mac))
+	for i := range dc.Devices {
+		if strings.ToUpper(dc.Devices[i].MAC) == mac {
+			return &dc.Devices[i]
+		}
+	}
+	return nil
+}
+
+func (dc *DevicesConfig) ManualEntries() []Device {
+	var result []Device
+	for _, d := range dc.Devices {
+		if d.IsManual {
+			result = append(result, d)
+		}
 	}
 	return result
 }

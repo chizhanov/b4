@@ -694,7 +694,7 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 	base := h.Sum32()
 
 	for attempt := uint32(0); attempt < 4096; attempt++ {
-		table := 100 + int((base+attempt)%2000)
+		table := 100 + int((base+attempt)%150)
 		mark := uint32(0x100 + (base+attempt)%0x7E00)
 		if _, ok := usedMarks[mark]; ok {
 			continue

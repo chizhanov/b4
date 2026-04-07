@@ -520,13 +520,13 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			}
 		}
 
-		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 			if cfg.Queue.Devices.WhiteIsBlack {
 				rules = append(rules,
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
 						Spec: []string{"-j", chainName}},
 				)
-				for _, mac := range cfg.Queue.Devices.Mac {
+				for _, mac := range cfg.Queue.Devices.SelectedMACs() {
 					mac = strings.ToUpper(strings.TrimSpace(mac))
 					if mac == "" {
 						continue
@@ -537,7 +537,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 					)
 				}
 			} else {
-				for _, mac := range cfg.Queue.Devices.Mac {
+				for _, mac := range cfg.Queue.Devices.SelectedMACs() {
 					mac = strings.ToUpper(strings.TrimSpace(mac))
 					if mac == "" {
 						continue

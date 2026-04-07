@@ -141,7 +141,7 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 			return false
 		}
 
-		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 			out, _ := run(ipt, "-w", "-t", "mangle", "-S", "FORWARD")
 			if !strings.Contains(out, "B4") {
 				log.Tracef("Monitor: FORWARD->B4 rule missing")
@@ -218,7 +218,7 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 		return false
 	}
 
-	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 		if !nft.chainExists("forward") {
 			log.Tracef("Monitor: forward chain missing")
 			return false

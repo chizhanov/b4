@@ -7,19 +7,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
 )
 
 type Manager struct {
-	available bool
-	ipToMAC   map[string]string
-	macToIP   map[string]string
-	hostnames map[string]string // MAC → hostname
-	mu        sync.RWMutex
-	callbacks []LeaseUpdateCallback
-	ctx       context.Context
-	cancel    context.CancelFunc
-	refreshCh chan struct{}
+	available     bool
+	ipToMAC       map[string]string
+	macToIP       map[string]string
+	hostnames     map[string]string // MAC → hostname
+	manualDevices []config.Device
+	mu            sync.RWMutex
+	callbacks     []LeaseUpdateCallback
+	ctx           context.Context
+	cancel        context.CancelFunc
+	refreshCh     chan struct{}
 }
 
 type DetectionResult struct {
@@ -64,10 +66,6 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) Start() {
-	if !m.available {
-		return
-	}
-
 	m.refresh()
 
 	go func() {
@@ -86,7 +84,11 @@ func (m *Manager) Start() {
 		}
 	}()
 
-	log.Infof("DHCP manager started (source: arp)")
+	if m.available {
+		log.Infof("DHCP manager started (source: arp)")
+	} else {
+		log.Infof("DHCP manager started (manual devices only)")
+	}
 }
 
 func (m *Manager) Stop() {
@@ -94,22 +96,24 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) refresh() {
-	if !m.available {
+	m.mu.RLock()
+	hasManual := len(m.manualDevices) > 0
+	m.mu.RUnlock()
+
+	var entries []ARPEntry
+	if m.available {
+		var err error
+		entries, err = parseARP()
+		if err != nil {
+			log.Tracef("DHCP: ARP parse error: %v", err)
+		}
+	}
+
+	if len(entries) == 0 && !hasManual {
+		log.Tracef("DHCP: no ARP entries and no manual devices")
 		return
 	}
 
-	entries, err := parseARP()
-	if err != nil {
-		log.Tracef("DHCP: ARP parse error: %v", err)
-		return
-	}
-
-	if len(entries) == 0 {
-		log.Tracef("DHCP: no ARP entries found")
-		return
-	}
-
-	// Best-effort hostname enrichment from DHCP lease files
 	leaseHostnames := enrichHostnames()
 
 	m.mu.Lock()
@@ -132,6 +136,19 @@ func (m *Manager) refresh() {
 			delete(m.ipToMAC, ip)
 			log.Tracef("DHCP: removed stale ARP entry %s -> %s", ip, mac)
 		}
+	}
+
+	for _, d := range m.manualDevices {
+		if d.IP == "" || d.MAC == "" {
+			continue
+		}
+		mac := normalizeMAC(d.MAC)
+		m.ipToMAC[d.IP] = mac
+		m.macToIP[mac] = d.IP
+		if d.Name != "" {
+			m.hostnames[mac] = d.Name
+		}
+		log.Tracef("DHCP: manual device %s -> %s", d.IP, mac)
 	}
 
 	count := len(m.ipToMAC)
@@ -188,14 +205,30 @@ func (m *Manager) GetAllMappings() map[string]string {
 }
 
 func (m *Manager) IsAvailable() bool {
-	return m.available
+	if m.available {
+		return true
+	}
+	m.mu.RLock()
+	hasManual := len(m.manualDevices) > 0
+	m.mu.RUnlock()
+	return hasManual
 }
 
 func (m *Manager) SourceInfo() (name, path string) {
-	if !m.available {
-		return "", ""
+	m.mu.RLock()
+	hasManual := len(m.manualDevices) > 0
+	m.mu.RUnlock()
+
+	if m.available && hasManual {
+		return "arp+manual", arpPath
 	}
-	return "arp", arpPath
+	if m.available {
+		return "arp", arpPath
+	}
+	if hasManual {
+		return "manual", ""
+	}
+	return "", ""
 }
 
 func (m *Manager) GetHostnameForMAC(mac string) string {
@@ -212,6 +245,13 @@ func (m *Manager) GetAllHostnames() map[string]string {
 		result[k] = v
 	}
 	return result
+}
+
+func (m *Manager) SetManualDevices(devices []config.Device) {
+	m.mu.Lock()
+	m.manualDevices = devices
+	m.mu.Unlock()
+	m.TriggerRefresh()
 }
 
 func normalizeMAC(mac string) string {

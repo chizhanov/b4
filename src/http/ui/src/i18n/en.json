@@ -41,6 +41,7 @@
     "addToSet": "Add to set",
     "tlsVersion": "TLS Version",
     "noData": "No data",
+    "add": "Add",
     "clearAll": "Clear All",
     "unknown": "Unknown",
     "targetSet": "Target Set",
@@ -79,7 +80,8 @@
       "noDevices": "No devices found",
       "macAddress": "MAC Address",
       "deviceName": "Name",
-      "ip": "IP"
+      "ip": "IP",
+      "manual": "manual"
     }
   },
   "settings": {
@@ -252,7 +254,12 @@
       "arpUnavailable": "ARP table not available. Device discovery unavailable.",
       "mss": "MSS",
       "editName": "Edit name",
-      "resetToVendor": "Reset to vendor name"
+      "resetToVendor": "Reset to vendor name",
+      "manualDevices": "Manual Devices",
+      "manualDevicesDesc": "Add IP addresses of devices behind another router that are not visible in the ARP table. These devices will appear in device lists and can be used for per-device filtering.",
+      "manualIp": "IP Address",
+      "manualName": "Name",
+      "manualNamePlaceholder": "Device name (optional)"
     },
     "RestartDialog": {
       "title": "Restart B4 Service",

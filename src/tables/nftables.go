@@ -189,13 +189,13 @@ func (n *NFTablesManager) Apply() error {
 
 	markAccept := fmt.Sprintf("0x%x", cfg.Queue.Mark)
 
-	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 		if err := n.createChain("forward", "forward", -150, "accept"); err != nil {
 			return err
 		}
 
 		if cfg.Queue.Devices.WhiteIsBlack {
-			for _, mac := range cfg.Queue.Devices.Mac {
+			for _, mac := range cfg.Queue.Devices.SelectedMACs() {
 				if mac = strings.ToUpper(strings.TrimSpace(mac)); mac != "" {
 					if err := n.addRule("forward", "ether", "saddr", mac, "return"); err != nil {
 						return err
@@ -206,7 +206,7 @@ func (n *NFTablesManager) Apply() error {
 				return err
 			}
 		} else {
-			for _, mac := range cfg.Queue.Devices.Mac {
+			for _, mac := range cfg.Queue.Devices.SelectedMACs() {
 				if mac = strings.ToUpper(strings.TrimSpace(mac)); mac != "" {
 					if err := n.addRule("forward", "ether", "saddr", mac, "jump", nftChainName); err != nil {
 						return err

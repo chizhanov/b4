@@ -185,8 +185,7 @@ var DefaultConfig = Config{
 			Enabled:      false,
 			VendorLookup: false,
 			WhiteIsBlack: false,
-			Mac:          []string{},
-			MSSClamps:    []DeviceMSSClamp{},
+			Devices:      []Device{},
 		},
 		MSSClamp: MSSClampConfig{
 			Enabled: false,
