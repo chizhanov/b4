@@ -2,7 +2,7 @@
 
 ## [1.48.2] - 2026-04-07
 
-- FIXED: **GeoSite routing not working with encrypted DNS** — when using DoH/DoT (e.g. `https-dns-proxy`), domains from `GeoSite` categories were not added to routing sets. B4 now intercepts DNS queries earlier so routing works regardless of how upstream DNS is configured.
+- FIXED: **GeoSite routing not working with local DNS proxies** — when the router forwards DNS through a local proxy like `https-dns-proxy`, domains from `GeoSite` categories were not added to routing sets. B4 now intercepts DNS queries earlier so routing works in these setups.
 
 ## [1.48.1] - 2026-04-05
 
