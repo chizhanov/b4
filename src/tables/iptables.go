@@ -417,6 +417,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		}
 
 		rules = append(rules,
+			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsSpec},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
 		)
 
