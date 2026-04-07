@@ -30,13 +30,19 @@ import {
   B4Badge,
   B4InlineEdit,
 } from "@b4.elements";
-import { useDevices, DeviceInfo, DevicesSettingsProps } from "@b4.devices";
+import { useDevices, DevicesSettingsProps } from "@b4.devices";
 import { sortDevices } from "@utils";
 
 const generateSyntheticMAC = (ip: string): string => {
-  const parts = ip.split(".");
+  const parts = ip.trim().split(".");
   if (parts.length !== 4) return "";
-  return `02:B4:${parts.map((p) => parseInt(p).toString(16).toUpperCase().padStart(2, "0")).join(":")}`;
+  const octets = parts.map((p) => {
+    if (!/^\d+$/.test(p)) return -1;
+    const n = Number(p);
+    return n >= 0 && n <= 255 ? n : -1;
+  });
+  if (octets.some((o) => o < 0)) return "";
+  return `02:B4:${octets.map((o) => o.toString(16).toUpperCase().padStart(2, "0")).join(":")}`;
 };
 
 export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
@@ -127,9 +133,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   };
 
   const isSelected = (mac: string) => findConfigDevice(mac)?.selected || false;
-  const selectedCount = configDevices.filter((d) => d.selected).length;
-  const allSelected = devices.length > 0 && selectedCount >= devices.length;
-  const someSelected = selectedCount > 0 && selectedCount < devices.length;
+  const allSelected = devices.length > 0 && devices.every((d) => isSelected(d.mac));
+  const someSelected = devices.some((d) => isSelected(d.mac)) && !allSelected;
   const manualDevices = configDevices.filter((d) => d.is_manual);
 
   const tableHeaders = [

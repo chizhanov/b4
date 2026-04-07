@@ -641,6 +641,74 @@ func containsSubstr(s, substr string) bool {
 	return false
 }
 
+func TestSelectedMACs(t *testing.T) {
+	t.Run("returns only selected non-manual devices", func(t *testing.T) {
+		dc := DevicesConfig{
+			Devices: []Device{
+				{MAC: "AA:BB:CC:DD:EE:01", Selected: true},
+				{MAC: "AA:BB:CC:DD:EE:02", Selected: false},
+				{MAC: "02:B4:C0:A8:01:01", Selected: true, IsManual: true},
+			},
+		}
+		macs := dc.SelectedMACs()
+		if len(macs) != 1 || macs[0] != "AA:BB:CC:DD:EE:01" {
+			t.Errorf("expected [AA:BB:CC:DD:EE:01], got %v", macs)
+		}
+	})
+
+	t.Run("returns nil when none selected", func(t *testing.T) {
+		dc := DevicesConfig{
+			Devices: []Device{
+				{MAC: "AA:BB:CC:DD:EE:01", Selected: false},
+			},
+		}
+		if macs := dc.SelectedMACs(); macs != nil {
+			t.Errorf("expected nil, got %v", macs)
+		}
+	})
+}
+
+func TestFindByMAC(t *testing.T) {
+	dc := DevicesConfig{
+		Devices: []Device{
+			{MAC: "AA:BB:CC:DD:EE:01", Name: "phone"},
+			{MAC: "AA:BB:CC:DD:EE:02", Name: "laptop"},
+		},
+	}
+
+	t.Run("finds existing device case-insensitive", func(t *testing.T) {
+		d := dc.FindByMAC("aa:bb:cc:dd:ee:01")
+		if d == nil || d.Name != "phone" {
+			t.Error("expected to find phone")
+		}
+	})
+
+	t.Run("returns nil for unknown MAC", func(t *testing.T) {
+		if d := dc.FindByMAC("FF:FF:FF:FF:FF:FF"); d != nil {
+			t.Error("expected nil")
+		}
+	})
+}
+
+func TestManualEntries(t *testing.T) {
+	dc := DevicesConfig{
+		Devices: []Device{
+			{MAC: "AA:BB:CC:DD:EE:01", Selected: true},
+			{MAC: "02:B4:C0:A8:01:01", IP: "192.168.1.1", IsManual: true},
+			{MAC: "02:B4:C0:A8:01:02", IP: "192.168.1.2", IsManual: true},
+		},
+	}
+	entries := dc.ManualEntries()
+	if len(entries) != 2 {
+		t.Errorf("expected 2 manual entries, got %d", len(entries))
+	}
+	for _, e := range entries {
+		if !e.IsManual {
+			t.Error("non-manual entry returned")
+		}
+	}
+}
+
 func TestBuildSetPortRanges(t *testing.T) {
 	t.Run("parses TCP port filter", func(t *testing.T) {
 		cfg := NewConfig()

@@ -687,7 +687,7 @@ func (cfg *Config) CollectDeviceMSSClamps() map[int][]string {
 func (dc *DevicesConfig) SelectedMACs() []string {
 	var macs []string
 	for _, d := range dc.Devices {
-		if d.Selected {
+		if d.Selected && !d.IsManual {
 			mac := strings.ToUpper(strings.TrimSpace(d.MAC))
 			if mac != "" {
 				macs = append(macs, mac)
