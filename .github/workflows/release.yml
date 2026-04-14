@@ -89,6 +89,11 @@ jobs:
         working-directory: src
         run: go test ./...
 
+      - name: Run Lua zapret smoke tests
+        working-directory: src
+        continue-on-error: true
+        run: GOCACHE=/tmp/go-build go run ./tools/lua_ci_smoke
+
   build-linux:
     name: Build Linux ${{ matrix.arch }}
     needs: test

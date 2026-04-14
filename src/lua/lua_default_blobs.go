@@ -1,0 +1,43 @@
+package lua
+
+import (
+	"encoding/hex"
+
+	lua "github.com/yuin/gopher-lua"
+)
+
+const fakeDefaultHTTP = "GET / HTTP/1.1\r\nHost: www.iana.org\r\n" +
+	"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0\r\n" +
+	"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8\r\n" +
+	"Accept-Encoding: gzip, deflate, br\r\n\r\n"
+
+var fakeDefaultTLS = mustDecodeHex(
+	"16030102a30100029f03034188822d4ffd81489ee790651fba057bffa75af95b8a8f458b41f03d1bdde3f8209b23a5d2" +
+		"211e9fe7856cfc61803a3fbab960bab30e98276cf7382865805d40380022130113031302c02bc02fcca9cca8c02cc030" +
+		"c00ac009c013c014009c009d002f0035010002340000001600140000117777772e6d6963726f736f66742e636f6d0017" +
+		"0000ff01000100000a000e000c001d00170018001901000101000b00020100002300000010000e000c02683208687474" +
+		"702f312e310005000501000000000022000a00080403050306030203001200000033006b0069001d0020691516296dad" +
+		"d56888272fdeafac3c4ca4e4d8c8fb4187f4764e0efa64c4e9290017004104fe62b908c8c32ab9873784426b5ccdc9ca" +
+		"6238d3d9998ac42dc6d0a360b21254418e525ee3abf9c20781dcf8f26a91402fcba4ff6f24c74d77772d6fe077aa9200" +
+		"2b00050403040303000d0018001604030503060308040805080604010501060102030201002d00020101001c00024001" +
+		"001b000706000100020003fe0d0119000001000321002062e883d897058abea1f2634ece93848ecfe7ddb2e48706ac11" +
+		"19be0e7187f1a600efd86b275ec0a75d424e8cdcf39f1c5162efff5bedc8fdee6fbb889bb1309c6642ab0f6689188b11" +
+		"c16de72aeb963b7f5278dbf86d04f7951aa8f064520739f0a81d0d1636b7180ec84427fef331f0de8c74f5a1d88f6f45" +
+		"9769795e2ed4b02c0c1a6fccce90c7ddc66095f3c219de5080bfdef22563152663091fc5df32f5ea9cd2ff994e67a2e5" +
+		"1a9485e3df36a5834b0a1cafd748c94b8a27dd587f95f26bde2b12d3ec4d69379c139b16b04552387769efaa6519bcc2" +
+		"934db01b7f5b41ffafba5051c3f1270925f5609009b1e5c0c74278543b23197d8e7213b4d3cd63b6c44a283d453e8bdb" +
+		"844f78643069e21b",
+)
+
+func registerDefaultBlobs(L *lua.LState) {
+	L.SetGlobal("fake_default_tls", lua.LString(string(fakeDefaultTLS)))
+	L.SetGlobal("fake_default_http", lua.LString(fakeDefaultHTTP))
+}
+
+func mustDecodeHex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}

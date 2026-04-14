@@ -66,12 +66,12 @@ type TCPConfig struct {
 	DropSACK       bool   `json:"drop_sack"`
 	DPortFilter    string `json:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
-	Incoming       IncomingConfig       `json:"incoming"`
-	Desync         DesyncConfig         `json:"desync"`
-	Win            WinConfig            `json:"win"`
-	Duplicate      DuplicateConfig      `json:"duplicate"`
-	IPBlockDetect  IPBlockDetectConfig  `json:"ip_block_detect"`
-	RSTProtection  RSTProtectionConfig  `json:"rst_protection"`
+	Incoming      IncomingConfig      `json:"incoming"`
+	Desync        DesyncConfig        `json:"desync"`
+	Win           WinConfig           `json:"win"`
+	Duplicate     DuplicateConfig     `json:"duplicate"`
+	IPBlockDetect IPBlockDetectConfig `json:"ip_block_detect"`
+	RSTProtection RSTProtectionConfig `json:"rst_protection"`
 }
 
 type IPBlockDetectConfig struct {
@@ -180,6 +180,10 @@ type TargetsConfig struct {
 	IpsToMatch        []string `json:"-"`
 }
 
+type LuaSystemConfig struct {
+	Init []string `json:"init"`
+}
+
 type SystemConfig struct {
 	Tables    TablesConfig    `json:"tables"`
 	Logging   Logging         `json:"logging"`
@@ -188,6 +192,7 @@ type SystemConfig struct {
 	MTProto   MTProtoConfig   `json:"mtproto"`
 	Checker   DiscoveryConfig `json:"checker"`
 	Geo       GeoDatConfig    `json:"geo"`
+	Lua       LuaSystemConfig `json:"lua"`
 	API       ApiConfig       `json:"api"`
 	Timezone  string          `json:"timezone"`
 }
@@ -266,11 +271,37 @@ type SetConfig struct {
 	Fragmentation FragmentationConfig `json:"fragmentation"`
 	Faking        FakingConfig        `json:"faking"`
 	Targets       TargetsConfig       `json:"targets"`
+	Lua           LuaSetConfig        `json:"lua"`
 	Enabled       bool                `json:"enabled"`
 	DNS           DNSConfig           `json:"dns"`
 	TCPPortRanges []PortRange         `json:"-"`
 	UDPPortRanges []PortRange         `json:"-"`
 	Routing       RoutingConfig       `json:"routing"`
+}
+
+type LuaPacketPosConfig struct {
+	Mode string `json:"mode"`
+	Pos  uint64 `json:"pos"`
+}
+
+type LuaPacketRangeConfig struct {
+	UpperCutoff bool               `json:"upper_cutoff"`
+	From        LuaPacketPosConfig `json:"from"`
+	To          LuaPacketPosConfig `json:"to"`
+}
+
+type LuaExecutionInstanceConfig struct {
+	Func          string               `json:"func"`
+	Arg           map[string]string    `json:"arg"`
+	PayloadFilter string               `json:"payload_filter"`
+	RangeIn       LuaPacketRangeConfig `json:"range_in"`
+	RangeOut      LuaPacketRangeConfig `json:"range_out"`
+}
+
+type LuaSetConfig struct {
+	Enabled       bool                         `json:"enabled"`
+	Desync        []string                     `json:"desync"`
+	ExecutionPlan []LuaExecutionInstanceConfig `json:"execution_plan"`
 }
 
 type GeoDatConfig struct {

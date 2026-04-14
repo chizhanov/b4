@@ -167,6 +167,12 @@ var DefaultSetConfig = SetConfig{
 		GeoIpCategories:   []string{},
 		SourceDevices:     []string{},
 	},
+
+	Lua: LuaSetConfig{
+		Enabled:       false,
+		Desync:        []string{},
+		ExecutionPlan: []LuaExecutionInstanceConfig{},
+	},
 }
 
 var DefaultConfig = Config{
@@ -202,6 +208,9 @@ var DefaultConfig = Config{
 			GeoIpPath:   "",
 			GeoSiteURL:  "",
 			GeoIpURL:    "",
+		},
+		Lua: LuaSystemConfig{
+			Init: []string{},
 		},
 
 		Tables: TablesConfig{
@@ -279,6 +288,8 @@ func NewSetConfig() SetConfig {
 	cfg.Fragmentation.StrategyPool = append(make([]string, 0), DefaultSetConfig.Fragmentation.StrategyPool...)
 	cfg.Faking.TLSMod = append(make([]string, 0), DefaultSetConfig.Faking.TLSMod...)
 	cfg.Routing.SourceInterfaces = append(make([]string, 0), DefaultSetConfig.Routing.SourceInterfaces...)
+	cfg.Lua.Desync = append(make([]string, 0), DefaultSetConfig.Lua.Desync...)
+	cfg.Lua.ExecutionPlan = append(make([]LuaExecutionInstanceConfig, 0), DefaultSetConfig.Lua.ExecutionPlan...)
 
 	return cfg
 }
@@ -287,6 +298,7 @@ func NewConfig() Config {
 	cfg := DefaultConfig
 
 	cfg.Sets = []*SetConfig{}
+	cfg.System.Lua.Init = append(make([]string, 0), DefaultConfig.System.Lua.Init...)
 
 	return cfg
 }

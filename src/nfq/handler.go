@@ -14,6 +14,7 @@ import (
 	"github.com/daniellavrushin/b4/capture"
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/lua"
 	"github.com/daniellavrushin/b4/metrics"
 	"github.com/daniellavrushin/b4/quic"
 	"github.com/daniellavrushin/b4/sni"
@@ -412,6 +413,10 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		m.RecordPacket(uint64(len(pkt.raw)))
 	}
 
+	if matched && set != nil && set.Lua.Enabled && w.luaRuntime != nil && w.luaRuntime.Enabled() {
+		return w.handleLuaPacket(q, id, pkt, set, payload, sport, dport)
+	}
+
 	if matched {
 		if isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
 			ibd := &set.TCP.IPBlockDetect
@@ -619,6 +624,10 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	m.RecordConnection("UDP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, udpTLS)
 	m.RecordPacket(uint64(len(pkt.raw)))
 
+	if set != nil && set.Lua.Enabled && w.luaRuntime != nil && w.luaRuntime.Enabled() {
+		return w.handleLuaPacket(q, id, pkt, set, payload, sport, dport)
+	}
+
 	switch set.UDP.Mode {
 	case "drop":
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
@@ -669,6 +678,31 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	default:
 		return accept(q, id)
 	}
+}
+
+func (w *Worker) handleLuaPacket(
+	q *nfqueue.Nfqueue,
+	id uint32,
+	pkt *pktInfo,
+	set *config.SetConfig,
+	payload []byte,
+	sport uint16,
+	dport uint16,
+) int {
+	req := &lua.PacketRequest{
+		Family:    pkt.ver,
+		Proto:     pkt.proto,
+		RawPacket: pkt.raw,
+		Payload:   payload,
+		SrcIP:     pkt.srcStr,
+		DstIP:     pkt.dstStr,
+		SrcPort:   sport,
+		DstPort:   dport,
+	}
+	if set != nil {
+		req.SetName = set.Name
+	}
+	return w.luaRuntime.HandleNFQueuePacket(q, id, req, len(pkt.raw))
 }
 
 // handleNfqError handles errors from the NFQueue subsystem.

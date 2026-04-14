@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/daniellavrushin/b4/dhcp"
+	"github.com/daniellavrushin/b4/lua"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/florianl/go-nfqueue"
 )
@@ -21,6 +22,7 @@ type Pool struct {
 	Dhcp        *dhcp.Manager
 	stopCleanup chan struct{}
 	state       *runtimeState
+	luaRuntime  *lua.Runtime
 }
 
 type PacketInfo struct {
@@ -49,4 +51,5 @@ type Worker struct {
 	tlsCache         *tlsInfoCache
 	connTracker      *connStateTracker
 	ipBlocker        *ipBlockTracker
+	luaRuntime       *lua.Runtime
 }

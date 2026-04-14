@@ -1,6 +1,7 @@
 package sock
 
 import (
+	"errors"
 	"net"
 	"syscall"
 
@@ -15,6 +16,10 @@ type Sender struct {
 }
 
 func NewSenderWithMark(mark int) (*Sender, error) {
+	return NewSenderWithMarkAndInterface(mark, "")
+}
+
+func NewSenderWithMarkAndInterface(mark int, ifout string) (*Sender, error) {
 	s := &Sender{
 		fd4:  -1,
 		fd6:  -1,
@@ -32,6 +37,12 @@ func NewSenderWithMark(mark int) (*Sender, error) {
 		s.Close()
 		return nil, err
 	}
+	if ifout != "" {
+		if err := unix.SetsockoptString(s.fd4, unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifout); err != nil {
+			s.Close()
+			return nil, err
+		}
+	}
 	if err := syscall.SetsockoptInt(s.fd4, syscall.SOL_SOCKET, unix.SO_MARK, mark); err != nil {
 		s.Close()
 		return nil, err
@@ -44,6 +55,11 @@ func NewSenderWithMark(mark int) (*Sender, error) {
 		s.fd6 = -1
 	} else {
 		s.fd6 = fd6
+		if ifout != "" {
+			if err := unix.SetsockoptString(s.fd6, unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifout); err != nil {
+				log.Warnf("Failed to bind IPv6 socket to interface '%s': %v", ifout, err)
+			}
+		}
 		if err := syscall.SetsockoptInt(s.fd6, syscall.SOL_SOCKET, unix.SO_MARK, mark); err != nil {
 			log.Warnf("Failed to set SO_MARK on IPv6 socket: %v", err)
 		}
@@ -64,7 +80,7 @@ func (s *Sender) SendIPv4(packet []byte, destIP net.IP) error {
 
 func (s *Sender) SendIPv6(packet []byte, destIP net.IP) error {
 	if s.fd6 < 0 {
-		return nil
+		return errors.New("ipv6 raw socket is not available")
 	}
 	log.Tracef("Sending IPv6 packet to %s, len=%d", destIP.String(), len(packet))
 	addr := syscall.SockaddrInet6{}

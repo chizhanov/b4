@@ -17,6 +17,9 @@ var corruptionStrategies = []string{"badsum", "badseq", "badack", "all"}
 
 func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byte, ihl int, src net.IP, dstStr string, dport uint16, srcStr string, sport uint16, payload []byte) int {
 	incomingSet := w.connTracker.GetSetForIncoming(dstStr, dport, srcStr, sport)
+	if incomingSet != nil && incomingSet.Lua.Enabled && w.luaRuntime != nil && w.luaRuntime.Enabled() {
+		return accept(q, id)
+	}
 
 	if incomingSet != nil && len(raw) > ihl+13 {
 		tcp := raw[ihl:]

@@ -8,6 +8,7 @@ import (
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/dhcp"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/lua"
 	"github.com/daniellavrushin/b4/sni"
 )
 
@@ -33,6 +34,7 @@ func NewPool(cfg *config.Config) *Pool {
 	}
 
 	matcher := buildMatcher(cfg)
+	luaRuntime := lua.LoadRuntime(cfg)
 
 	dhcpMgr := dhcp.NewManager()
 
@@ -45,10 +47,17 @@ func NewPool(cfg *config.Config) *Pool {
 		w.tlsCache = state.tlsCache
 		w.connTracker = state.connState
 		w.ipBlocker = state.ipBlocker
+		w.luaRuntime = luaRuntime
 		ws = append(ws, w)
 	}
 
-	pool := &Pool{Workers: ws, Dhcp: dhcpMgr, stopCleanup: make(chan struct{}), state: state}
+	pool := &Pool{
+		Workers:     ws,
+		Dhcp:        dhcpMgr,
+		stopCleanup: make(chan struct{}),
+		state:       state,
+		luaRuntime:  luaRuntime,
+	}
 
 	dhcpMgr.OnUpdate(func(ipToMAC map[string]string) {
 		for _, w := range pool.Workers {
@@ -129,6 +138,12 @@ func (p *Pool) Stop() {
 	case <-time.After(timeout):
 		log.Errorf("Timeout (%v) waiting for NFQueue workers to stop", timeout)
 	}
+
+	if p.luaRuntime != nil {
+		if err := p.luaRuntime.Close(); err != nil {
+			log.Errorf("Lua runtime close error: %v", err)
+		}
+	}
 }
 
 func (w *Worker) getConfig() *config.Config {
@@ -180,6 +195,11 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 		p.Dhcp.SetManualDevices(newCfg.Queue.Devices.ManualEntries())
 	}
 
+	if p.luaRuntime != nil {
+		if err := p.luaRuntime.ReloadFromConfig(newCfg); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
