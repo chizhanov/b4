@@ -145,6 +145,7 @@ var DefaultSetConfig = SetConfig{
 		Strategy:          "pastseq",
 		SeqOffset:         10000,
 		PayloadFile:       "",
+		PayloadDomain:     "",
 		PayloadData:       []byte{},
 		TLSMod:            []string{},
 		TimestampDecrease: 600000, // Default value for timestamp faking strategy

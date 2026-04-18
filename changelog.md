@@ -1,9 +1,9 @@
 # B4 - Bye Bye Big Bro
 
-## [1.49.0] - 2026-04-07
+## [1.49.0] - 2026-04-18
 
 - ADDED: **Manual devices** — you can now add IP addresses of devices behind another router that are not visible in the ARP table. Added devices appear in device lists and can be used for per-device filtering and MSS clamping. Find it in Settings → Device Filtering. ([#185](https://github.com/DanielLavrushin/b4/issues/185))
-- IMPROVED: **Unified device model** — device selection, names, MSS clamping, and manual entries are now stored together instead of separate config fields. Existing configs are migrated automatically.
+- ADDED: **Fake payload from domain** — new option in `TCP` fake settings to generate a fake TLS handshake from any domain you type (e.g. `example.com`).
 - REMOVED: **Separate device alias file** — device names are now part of the main config. The old `mac_aliases.json` file is no longer used (aliases are migrated into the config on upgrade).
 - FIXED: **Traffic routing fails on Keenetic routers** — routing table IDs could be generated above `255`, which is not supported on systems using `BusyBox`. Table IDs now stay within the safe range.
 

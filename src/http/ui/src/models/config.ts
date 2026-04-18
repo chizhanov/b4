@@ -14,6 +14,7 @@ export enum FakingPayloadType {
   CAPTURE = 4,
   ZERO = 5,
   INVERTED = 6,
+  DOMAIN = 7,
 }
 
 export type MutationMode =
@@ -42,6 +43,7 @@ export interface FakingConfig {
   custom_payload: string;
   sni_mutation: SNIMutationConfig;
   payload_file: string;
+  payload_domain: string;
   tls_mod: string[];
   tcp_md5: boolean;
   timestamp_decrease: number;

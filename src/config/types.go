@@ -19,6 +19,7 @@ const (
 	FakePayloadCapture
 	FakePayloadZero     // All-zero payload (0x00000000)
 	FakePayloadInverted // Bitwise-inverted original TLS payload
+	FakePayloadDomain
 )
 
 type ApiConfig struct {
@@ -151,6 +152,7 @@ type FakingConfig struct {
 	SNIType           int      `json:"sni_type"`
 	CustomPayload     string   `json:"custom_payload"`
 	PayloadFile       string   `json:"payload_file"`
+	PayloadDomain     string   `json:"payload_domain"`
 	PayloadData       []byte   `json:"-"`
 	TLSMod            []string `json:"tls_mod"`            // e.g. ["rnd", "dupsid"]
 	TimestampDecrease uint32   `json:"timestamp_decrease"` // Amount to decrease TCP timestamp option

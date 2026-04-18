@@ -11,6 +11,7 @@ import (
 
 	"github.com/daniellavrushin/b4/geodat"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/tlsgen"
 	"github.com/daniellavrushin/b4/utils"
 )
 
@@ -815,6 +816,15 @@ func (c *Config) LoadCapturePayloads() {
 			}
 			set.Faking.PayloadData = data
 			log.Tracef("Loaded capture payload %s (%d bytes)", set.Faking.PayloadFile, len(data))
+		}
+		if set.Faking.SNIType == FakePayloadDomain && set.Faking.PayloadDomain != "" {
+			data, err := tlsgen.GenerateTLSClientHello(set.Faking.PayloadDomain)
+			if err != nil {
+				log.Errorf("Failed to generate domain payload for %s: %v", set.Faking.PayloadDomain, err)
+				continue
+			}
+			set.Faking.PayloadData = data
+			log.Tracef("Generated domain payload for %s (%d bytes)", set.Faking.PayloadDomain, len(data))
 		}
 	}
 }
