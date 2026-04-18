@@ -3,4 +3,158 @@ sidebar_position: 5
 title: MikroTik
 ---
 
-English translation is in progress. See the [Russian version](/ru/docs/install/mikrotik).
+On MikroTik RouterOS 7.x, b4 runs as a container.
+
+## Requirements
+
+- RouterOS version 7.21.1 or newer
+- ARM64 or AMD64 architecture
+- External storage attached (Flash/SSD/HDD), formatted as Ext4
+
+:::warning
+Containers on MikroTik require external storage - the router's internal memory is not enough.
+:::
+
+## Example parameters
+
+The guide uses the following values. Replace with your own:
+
+| Parameter | Value |
+| --- | --- |
+| Bridge network | 192.168.210.0/24 |
+| Bridge gateway | 192.168.210.1 |
+| Bridge name | bridge-docker |
+| Container IP | 192.168.210.10 |
+| Interface name | B4 |
+| LAN network | 192.168.100.0/24 |
+| DNS server | 192.168.100.1 |
+| Routing table | to_b4 |
+| Disk | /usb1 |
+| Client list | b4users |
+
+## Step 1: Bridge
+
+Create a bridge for the Docker network:
+
+```routeros
+/interface/bridge add name=bridge-docker port-cost-mode=short
+/ip/address add address=192.168.210.1/24 interface=bridge-docker network=192.168.210.0
+```
+
+## Step 2: Interface
+
+Create a virtual Ethernet interface and attach it to the bridge:
+
+```routeros
+/interface/veth add address=192.168.210.10/24 gateway=192.168.210.1 name=B4
+/interface/bridge/port add bridge=bridge-docker interface=B4
+```
+
+## Step 3: Routing
+
+Create a routing table and a route through the container:
+
+```routeros
+/routing table add disabled=no fib name=to_b4
+/ip route add check-gateway=ping gateway=192.168.210.10 routing-table=to_b4
+```
+
+## Step 4: Traffic marking
+
+Redirect traffic from clients in the `b4users` list through the container:
+
+```routeros
+/ip firewall mangle add chain=prerouting action=mark-connection \
+    new-connection-mark=b4_connections passthrough=yes connection-state=new \
+    dst-address-type=!local src-address-list=b4users in-interface-list=LAN \
+    place-before=0
+
+/ip firewall mangle add chain=prerouting action=mark-routing \
+    new-routing-mark=to_b4 passthrough=no connection-mark=b4_connections \
+    in-interface-list=LAN log=no place-before=1
+```
+
+:::caution FastTrack
+FastTrack bypasses mangle rules. Restrict it to unmarked connections:
+
+```routeros
+/ip firewall filter set [find action=fasttrack-connection] connection-mark=no-mark
+```
+
+:::
+
+## Step 5: Mount points
+
+```routeros
+/container/mounts add name=b4_etc src=/usb1/docker/b4-mounts/etc dst=/opt/etc/b4
+```
+
+Make sure the `/usb1/docker/b4-mounts/etc` directory exists on the disk.
+
+## Step 6: Run the container
+
+Configure the registry:
+
+```routeros
+/container/config set registry-url=https://registry-1.docker.io tmpdir=/usb1/docker/pull
+```
+
+Create and start the container:
+
+```routeros
+/container add remote-image=lavrushin/b4:latest interface=B4 \
+    root-dir=/usb1/docker/b4-mikrotik mounts=b4_etc \
+    cmd="--config /opt/etc/b4/b4.json" start-on-boot=yes \
+    logging=yes dns=192.168.100.1
+```
+
+After the image has been pulled:
+
+```routeros
+/container start [find tag~"b4"]
+```
+
+## Step 7: Add clients
+
+Add devices to the `b4users` address list:
+
+```routeros
+/ip firewall address-list add list=b4users address=192.168.100.50
+/ip firewall address-list add list=b4users address=192.168.100.51
+```
+
+## Web interface
+
+After the container starts: `http://192.168.210.10:7000`
+
+## Update
+
+```routeros
+/container stop [find tag~"b4"]
+/container remove [find tag~"b4"]
+/container add remote-image=lavrushin/b4:latest interface=B4 \
+    root-dir=/usb1/docker/b4-mikrotik mounts=b4_etc \
+    cmd="--config /opt/etc/b4/b4.json" start-on-boot=yes \
+    logging=yes dns=192.168.100.1
+```
+
+The configuration is stored on the mount point and is preserved when the container is recreated.
+
+## Troubleshooting
+
+**Container will not start:**
+
+1. Check status: `/container print`
+2. See logs: `/log print where topics~"container"`
+3. Make sure the disk is formatted as Ext4
+
+**No access to the web interface:**
+
+1. Check that the container is running: `/container print`
+2. Check connectivity: `/ping 192.168.210.10`
+
+**Traffic is not redirected:**
+
+1. Check the list: `/ip firewall address-list print where list=b4users`
+2. Check mangle: `/ip firewall mangle print`
+3. Check the route: `/ip route print where routing-table=to_b4`
