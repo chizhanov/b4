@@ -3,6 +3,7 @@ import { Box, IconButton, List, ListItemButton, Stack, Tooltip, Typography, Divi
 import { DeviceIcon, MenuIcon } from "@b4.icons";
 import { colors } from "@design";
 import { Sparkline } from "./Sparkline";
+import { formatRelativeShort } from "@utils";
 import type { EnrichedDevice } from "@hooks/useConnectionGroups";
 import { useTranslation } from "react-i18next";
 
@@ -14,14 +15,6 @@ interface Props {
   onToggleCollapsed: () => void;
   width?: number;
 }
-
-const formatRelative = (ts: number, now: number): string => {
-  const diff = Math.max(0, Math.floor((now - ts) / 1000));
-  if (diff < 2) return "now";
-  if (diff < 60) return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  return `${Math.floor(diff / 3600)}h`;
-};
 
 export const DeviceSidebar = memo<Props>(
   ({ devices, selectedMac, onSelect, collapsed, onToggleCollapsed, width = 240 }) => {
@@ -136,7 +129,7 @@ export const DeviceSidebar = memo<Props>(
                   <Typography
                     sx={{ color: colors.text.disabled, fontSize: 11, fontFamily: "monospace" }}
                   >
-                    {formatRelative(d.lastSeen, now)}
+                    {formatRelativeShort(t, d.lastSeen, now)}
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">

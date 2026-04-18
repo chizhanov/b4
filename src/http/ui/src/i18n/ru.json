@@ -63,6 +63,7 @@
     "addHostname": "Добавить хост",
     "timeAgo": {
       "justNow": "только что",
+      "nowShort": "сейчас",
       "minutesAgo": "{{count}} мин. назад",
       "hoursAgo": "{{count}} ч. назад",
       "daysAgo": "{{count}} дн. назад",

@@ -13,7 +13,7 @@ import {
 const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
 
 let bucketCount = DEFAULT_BUCKETS;
-let snapshotInterval = 200;
+let snapshotInterval = 500;
 
 const groups = new Map<string, ConnectionGroup>();
 const devices = new Map<string, DeviceSummary>();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, Fab, Tooltip } from "@mui/material";
 import { StartIcon, StopIcon } from "@b4.icons";
 import { colors } from "@design";
@@ -79,11 +79,10 @@ export const AggregatedView = ({
 
   const state = useConnectionGroups(lines, deviceMap, paused);
 
-  const nowRef = useRef(Date.now());
   useEffect(() => {
-    nowRef.current = state.ts || Date.now();
-    setNowTick(nowRef.current);
-  }, [state.ts]);
+    const id = globalThis.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => globalThis.clearInterval(id);
+  }, []);
 
   const filteredGroups = useMemo(() => {
     const cutoff = window === 0 ? 0 : nowTick - window * 1000;

@@ -63,6 +63,7 @@
     "addHostname": "Add Hostname",
     "timeAgo": {
       "justNow": "just now",
+      "nowShort": "now",
       "minutesAgo": "{{count}}m ago",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",

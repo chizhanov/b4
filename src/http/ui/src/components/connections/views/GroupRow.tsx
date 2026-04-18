@@ -5,6 +5,7 @@ import { B4Badge } from "@common/B4Badge";
 import { ProtocolChip } from "@common/ProtocolChip";
 import { colors } from "@design";
 import { Sparkline } from "./Sparkline";
+import { formatRelativeShort } from "@utils";
 import type { EnrichedGroup } from "@hooks/useConnectionGroups";
 import { useTranslation } from "react-i18next";
 
@@ -20,14 +21,6 @@ interface Props {
   onEnrichAsn: (ip: string) => void;
   enrichingIps: Set<string>;
 }
-
-const formatRelative = (ts: number, now: number): string => {
-  const diff = Math.max(0, Math.floor((now - ts) / 1000));
-  if (diff < 2) return "now";
-  if (diff < 60) return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  return `${Math.floor(diff / 3600)}h`;
-};
 
 export const GroupRow = memo<Props>(
   ({
@@ -246,7 +239,7 @@ export const GroupRow = memo<Props>(
               color: colors.text.disabled,
             }}
           >
-            {formatRelative(group.lastSeen, now)}
+            {formatRelativeShort(t, group.lastSeen, now)}
           </Typography>
         </Box>
       </Box>
