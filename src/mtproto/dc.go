@@ -2,6 +2,7 @@ package mtproto
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -40,13 +41,33 @@ var proxyConfigURLs = []string{
 	"https://proxy.lavrush.in/telegram/getProxyConfig",
 }
 
-func StartDCRefresher() {
+var (
+	dcRefresherMu   sync.Mutex
+	dcRefresherStop context.CancelFunc
+)
+
+func StartDCRefresher(ctx context.Context) {
+	dcRefresherMu.Lock()
+	if dcRefresherStop != nil {
+		dcRefresherStop()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	dcRefresherStop = cancel
+	dcRefresherMu.Unlock()
+
 	go func() {
+		t := time.NewTimer(0)
+		defer t.Stop()
 		for {
-			if err := RefreshDCs(); err != nil {
-				log.Warnf("MTProto DC refresh failed: %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if err := RefreshDCs(); err != nil {
+					log.Warnf("MTProto DC refresh failed: %v", err)
+				}
+				t.Reset(24 * time.Hour)
 			}
-			time.Sleep(24 * time.Hour)
 		}
 	}()
 }

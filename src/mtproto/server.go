@@ -88,7 +88,7 @@ func (s *Server) Start() error {
 	log.Infof("MTProto proxy listening on %s (SNI: %s)", addr, sec.Host)
 
 	go s.acceptLoop()
-	StartDCRefresher()
+	StartDCRefresher(s.ctx)
 	return nil
 }
 
