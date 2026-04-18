@@ -104,7 +104,11 @@
       "title": "Core Controls",
       "description": "Control core service and config operations",
       "restartService": "Restart B4 System Service",
-      "systemInfo": "System Info"
+      "systemInfo": "System Info",
+      "resetConfig": "Reset Config to Defaults",
+      "resetConfirm": "This will reset configuration to defaults. Your sets, web server settings, and geo file paths are preserved. Everything else (queue, logging, discovery, API tokens, devices, interfaces, timezone, SOCKS5, MTProto, MSS clamping) will be wiped.",
+      "resetSuccess": "Configuration reset to defaults",
+      "resetError": "Failed to reset configuration"
     },
     "Queue": {
       "title": "Queue & Packet Processing",

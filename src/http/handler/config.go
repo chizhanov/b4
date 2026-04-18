@@ -17,6 +17,38 @@ import (
 func (api *API) RegisterConfigApi() {
 
 	api.mux.HandleFunc("/api/config", api.handleConfig)
+	api.mux.HandleFunc("/api/config/reset", api.handleConfigReset)
+}
+
+func (a *API) handleConfigReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	curCfg := a.getCfg()
+	oldConfig := curCfg.Clone()
+
+	newCfg := config.NewConfig()
+	newCfg.ConfigPath = curCfg.ConfigPath
+	newCfg.Sets = curCfg.Clone().Sets
+	newCfg.System.WebServer = curCfg.System.WebServer
+	newCfg.System.Geo = curCfg.System.Geo
+
+	if err := a.saveAndPushConfig(&newCfg); err != nil {
+		log.Errorf("Failed to reset config: %v", err)
+		http.Error(w, "Failed to reset config", http.StatusInternalServerError)
+		return
+	}
+
+	a.PerformSoftRestart(&newCfg, oldConfig)
+
+	setJsonHeader(w)
+	_ = json.NewEncoder(w).Encode(ConfigResponse{
+		Success: true,
+		Message: "Configuration reset to defaults",
+		Config:  &newCfg,
+	})
 }
 
 func (a *API) handleConfig(w http.ResponseWriter, r *http.Request) {
