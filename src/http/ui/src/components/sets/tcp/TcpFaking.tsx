@@ -64,6 +64,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
     { value: 4, label: t("sets.faking.fakeSni.payloadFile") },
     { value: 5, label: t("sets.faking.fakeSni.payloadZeros") },
     { value: 6, label: t("sets.faking.fakeSni.payloadInverted") },
+    { value: 7, label: t("sets.faking.fakeSni.payloadDomainOption") },
   ];
 
   const MUTATION_MODES: { value: MutationMode; label: string }[] = [
@@ -302,6 +303,20 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                     disabled={!config.faking.sni}
                     multiline
                     rows={2}
+                  />
+                </Box>
+              )}
+              {config.faking.sni_type === FakingPayloadType.DOMAIN && (
+                <Box sx={{ mt: 2 }}>
+                  <B4TextField
+                    label={t("sets.faking.fakeSni.payloadDomainLabel")}
+                    value={config.faking.payload_domain}
+                    onChange={(e) =>
+                      onChange("faking.payload_domain", e.target.value)
+                    }
+                    helperText={t("sets.faking.fakeSni.payloadDomainHelper")}
+                    disabled={!config.faking.sni}
+                    placeholder="example.com"
                   />
                 </Box>
               )}

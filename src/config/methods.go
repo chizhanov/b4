@@ -11,6 +11,7 @@ import (
 
 	"github.com/daniellavrushin/b4/geodat"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/tlsgen"
 	"github.com/daniellavrushin/b4/utils"
 )
 
@@ -93,8 +94,6 @@ func (c *Config) LoadFromFile(path string) error {
 			c.Sets = append(c.Sets, &set)
 		}
 	}
-
-	ApplyConfigDefaults(c)
 
 	return nil
 }
@@ -224,16 +223,17 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate per-device MSS clamps
-	for i := range c.Queue.Devices.MSSClamps {
-		dc := &c.Queue.Devices.MSSClamps[i]
-		if dc.Size < 10 {
-			dc.Size = 10
+	for i := range c.Queue.Devices.Devices {
+		d := &c.Queue.Devices.Devices[i]
+		d.MAC = strings.ToUpper(strings.TrimSpace(d.MAC))
+		if d.MSSClamp > 0 {
+			if d.MSSClamp < 10 {
+				d.MSSClamp = 10
+			}
+			if d.MSSClamp > 1460 {
+				d.MSSClamp = 1460
+			}
 		}
-		if dc.Size > 1460 {
-			dc.Size = 1460
-		}
-		dc.Mac = strings.ToUpper(strings.TrimSpace(dc.Mac))
 	}
 
 	if c.Queue.Threads < 1 {
@@ -671,16 +671,47 @@ func (cfg *Config) IsTCPPort(port uint16) bool {
 	return cfg.tcpPortMap[port]
 }
 
-// CollectDeviceMSSClamps returns per-device MSS clamp entries grouped by size.
-// The key is the MSS size, and the value is a slice of MAC addresses.
 func (cfg *Config) CollectDeviceMSSClamps() map[int][]string {
 	result := make(map[int][]string)
-	for _, dc := range cfg.Queue.Devices.MSSClamps {
-		mac := strings.ToUpper(strings.TrimSpace(dc.Mac))
-		if mac == "" || dc.Size <= 0 {
+	for _, d := range cfg.Queue.Devices.Devices {
+		mac := strings.ToUpper(strings.TrimSpace(d.MAC))
+		if mac == "" || d.MSSClamp <= 0 {
 			continue
 		}
-		result[dc.Size] = append(result[dc.Size], mac)
+		result[d.MSSClamp] = append(result[d.MSSClamp], mac)
+	}
+	return result
+}
+
+func (dc *DevicesConfig) SelectedMACs() []string {
+	var macs []string
+	for _, d := range dc.Devices {
+		if d.Selected && !d.IsManual {
+			mac := strings.ToUpper(strings.TrimSpace(d.MAC))
+			if mac != "" {
+				macs = append(macs, mac)
+			}
+		}
+	}
+	return macs
+}
+
+func (dc *DevicesConfig) FindByMAC(mac string) *Device {
+	mac = strings.ToUpper(strings.TrimSpace(mac))
+	for i := range dc.Devices {
+		if strings.ToUpper(dc.Devices[i].MAC) == mac {
+			return &dc.Devices[i]
+		}
+	}
+	return nil
+}
+
+func (dc *DevicesConfig) ManualEntries() []Device {
+	var result []Device
+	for _, d := range dc.Devices {
+		if d.IsManual {
+			result = append(result, d)
+		}
 	}
 	return result
 }
@@ -765,24 +796,51 @@ func (c *Config) Clone() *Config {
 }
 
 func (c *Config) LoadCapturePayloads() {
-	if c.ConfigPath == "" {
-		return
+	capturesDir := ""
+	if c.ConfigPath != "" {
+		capturesDir = filepath.Dir(c.ConfigPath)
 	}
-	capturesDir := filepath.Join(filepath.Dir(c.ConfigPath))
 
 	for _, set := range c.Sets {
 		if !set.Enabled {
 			continue
 		}
-		if set.Faking.SNIType == FakePayloadCapture && set.Faking.PayloadFile != "" {
+		switch set.Faking.SNIType {
+		case FakePayloadDefault1:
+			set.Faking.PayloadData = FakeSNI1
+		case FakePayloadDefault2:
+			set.Faking.PayloadData = FakeSNI2
+		case FakePayloadCustom:
+			set.Faking.PayloadData = []byte(set.Faking.CustomPayload)
+		case FakePayloadCapture:
+			if capturesDir == "" || set.Faking.PayloadFile == "" {
+				set.Faking.PayloadData = nil
+				continue
+			}
 			capturePath := filepath.Join(capturesDir, set.Faking.PayloadFile)
 			data, err := os.ReadFile(capturePath)
 			if err != nil {
 				log.Errorf("Failed to load capture file %s: %v", set.Faking.PayloadFile, err)
+				set.Faking.PayloadData = nil
 				continue
 			}
 			set.Faking.PayloadData = data
 			log.Tracef("Loaded capture payload %s (%d bytes)", set.Faking.PayloadFile, len(data))
+		case FakePayloadDomain:
+			if set.Faking.PayloadDomain == "" {
+				set.Faking.PayloadData = nil
+				continue
+			}
+			data, err := tlsgen.GenerateTLSClientHello(set.Faking.PayloadDomain)
+			if err != nil {
+				log.Errorf("Failed to generate domain payload for %s: %v", set.Faking.PayloadDomain, err)
+				set.Faking.PayloadData = nil
+				continue
+			}
+			set.Faking.PayloadData = data
+			log.Tracef("Generated domain payload for %s (%d bytes)", set.Faking.PayloadDomain, len(data))
+		default:
+			set.Faking.PayloadData = nil
 		}
 	}
 }

@@ -14,6 +14,7 @@ export enum FakingPayloadType {
   CAPTURE = 4,
   ZERO = 5,
   INVERTED = 6,
+  DOMAIN = 7,
 }
 
 export type MutationMode =
@@ -42,6 +43,7 @@ export interface FakingConfig {
   custom_payload: string;
   sni_mutation: SNIMutationConfig;
   payload_file: string;
+  payload_domain: string;
   tls_mod: string[];
   tcp_md5: boolean;
   timestamp_decrease: number;
@@ -144,17 +146,20 @@ export interface QueueConfig {
   mss_clamp: MSSClampConfig;
 }
 
+export interface Device {
+  mac: string;
+  ip?: string;
+  name?: string;
+  mss_clamp?: number;
+  selected: boolean;
+  is_manual?: boolean;
+}
+
 export interface DevicesConfig {
-  mac: string[];
   enabled: boolean;
   vendor_lookup: boolean;
   wisb: boolean;
-  mss_clamps: DeviceMSSClamp[];
-}
-
-export interface DeviceMSSClamp {
-  mac: string;
-  size: number;
+  devices: Device[];
 }
 
 export interface WatchdogConfig {

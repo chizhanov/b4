@@ -1,8 +1,18 @@
 # B4 - Bye Bye Big Bro
 
-## [1.48.2] - 2026-04-07
+## [1.49.0] - 2026-04-18
 
+- ADDED: **Manual devices** — you can now add IP addresses of devices behind another router that are not visible in the ARP table. Added devices appear in device lists and can be used for per-device filtering and MSS clamping. Find it in Settings → Device Filtering. ([#185](https://github.com/DanielLavrushin/b4/issues/185))
+- ADDED: **Fake payload from domain** — new option in `TCP` fake settings to generate a fake TLS handshake from any domain you type (e.g. `example.com`).
+- REMOVED: **Separate device alias file** — device names are now part of the main config. The old `mac_aliases.json` file is no longer used (aliases are migrated into the config on upgrade).
+- FIXED: **Traffic routing fails on Keenetic routers** — routing table IDs could be generated above `255`, which is not supported on systems using `BusyBox`. Table IDs now stay within the safe range.
+- FIXED: **Fake SYN used the wrong payload** — when `Syn Fake` was enabled, the fake `SYN` packet always used a built-in payload instead of the one selected in the set (custom, captured, or domain-generated).
 - FIXED: **GeoSite routing not working with local DNS proxies** — when the router forwards DNS through a local proxy like `https-dns-proxy`, domains from `GeoSite` categories were not added to routing sets. B4 now intercepts DNS queries earlier so routing works in these setups.
+- FIXED: **Log level "Error" reverted to "Info" after restart** — when the log level was set to `Error` in the UI, it was silently changed back to `Info` on the next start.
+- FIXED: **MTProto images and files not loading** — Telegram uses extra "CDN" data centers (like DC 203) for media that B4 did not know about, so some pictures and files failed to load. B4 now fetches the current Telegram data center list on start (and on demand from Settings → MTProto Proxy → "Refresh Telegram DC list"). ([#190](https://github.com/DanielLavrushin/b4/issues/190))
+- IMPROVED: **Discovery groups domains more consistently** — when one strategy works for all tested domains, they are shown as one group and can be applied together in a single click, instead of being split into separate groups.
+- IMPROVED: **RST protection catches more fake resets** — added extra checks that help tell real resets from injected ones, so fewer connections are killed by DPI.
+- FIXED: **Packet handling on routers with extra firewall marks** — when other services (VPN, QoS, policy routing) set their own marks on packets, B4 did not recognize its own mark. This could cause queued packets to loop and, when traffic routing was enabled, break masquerade on VPN interfaces.
 
 ## [1.48.1] - 2026-04-05
 

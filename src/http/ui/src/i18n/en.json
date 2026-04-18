@@ -41,6 +41,7 @@
     "addToSet": "Add to set",
     "tlsVersion": "TLS Version",
     "noData": "No data",
+    "add": "Add",
     "clearAll": "Clear All",
     "unknown": "Unknown",
     "targetSet": "Target Set",
@@ -79,7 +80,8 @@
       "noDevices": "No devices found",
       "macAddress": "MAC Address",
       "deviceName": "Name",
-      "ip": "IP"
+      "ip": "IP",
+      "manual": "manual"
     }
   },
   "settings": {
@@ -225,6 +227,10 @@
       "secret": "Secret",
       "secretHelp": "Paste this into Telegram MTProto proxy settings",
       "generateSecret": "Generate Secret",
+      "refreshDCs": "Refresh Telegram DC list",
+      "refreshingDCs": "Fetching…",
+      "refreshDCsOk": "Loaded {{count}} DC entries from Telegram.",
+      "refreshDCsErr": "Refresh failed: {{error}}",
       "restartNote": "Restart B4 after changing MTProto settings for changes to take effect."
     },
     "MSSClamping": {
@@ -252,7 +258,12 @@
       "arpUnavailable": "ARP table not available. Device discovery unavailable.",
       "mss": "MSS",
       "editName": "Edit name",
-      "resetToVendor": "Reset to vendor name"
+      "resetToVendor": "Reset to vendor name",
+      "manualDevices": "Manual Devices",
+      "manualDevicesDesc": "Add IP addresses of devices behind another router that are not visible in the ARP table. These devices will appear in device lists and can be used for per-device filtering.",
+      "manualIp": "IP Address",
+      "manualName": "Name",
+      "manualNamePlaceholder": "Device name (optional)"
     },
     "RestartDialog": {
       "title": "Restart B4 Service",
@@ -449,7 +460,8 @@
       "bypassed": "Bypassed",
       "ofTotal": "of total",
       "packets": "Packets",
-      "pktPerSec": "pkt/s"
+      "pktPerSec": "pkt/s",
+      "rstDropped": "RST Dropped"
     },
     "health": {
       "running": "Running",
@@ -792,6 +804,9 @@
         "payloadFile": "My own Payload File",
         "payloadZeros": "All Zeros",
         "payloadInverted": "Inverted Original",
+        "payloadDomainOption": "Generated from Domain",
+        "payloadDomainLabel": "Domain",
+        "payloadDomainHelper": "TLS ClientHello will be generated with this domain as SNI",
         "customPayload": "Custom Payload (Hex)",
         "customPayloadHelper": "Hex-encoded payload for fake packets (use Capture feature to get real payloads)",
         "generatedPayload": "Generated Payload",

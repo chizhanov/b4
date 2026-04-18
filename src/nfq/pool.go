@@ -57,6 +57,7 @@ func NewPool(cfg *config.Config) *Pool {
 		log.Infof("DHCP: updated %d IP->MAC mappings", len(ipToMAC))
 	})
 
+	dhcpMgr.SetManualDevices(cfg.Queue.Devices.ManualEntries())
 	dhcpMgr.Start()
 
 	initialMappings := dhcpMgr.GetAllMappings()
@@ -174,6 +175,11 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 		w.cfg.Store(newCfg)
 		w.matcher.Store(matcher)
 	}
+
+	if p.Dhcp != nil {
+		p.Dhcp.SetManualDevices(newCfg.Queue.Devices.ManualEntries())
+	}
+
 	return nil
 }
 

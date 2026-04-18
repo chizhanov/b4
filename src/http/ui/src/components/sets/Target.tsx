@@ -19,6 +19,7 @@ import {
   Checkbox,
   Paper,
   CircularProgress,
+  Chip,
 } from "@mui/material";
 import {
   DomainIcon,
@@ -892,7 +893,9 @@ export const TargetSettings = ({
                                   fontSize: "0.85rem",
                                 }}
                               >
-                                {device.mac}
+                                {device.is_manual ? (
+                                  <Typography variant="caption" color="text.secondary">—</Typography>
+                                ) : device.mac}
                               </TableCell>
                               <TableCell
                                 sx={{
@@ -900,7 +903,12 @@ export const TargetSettings = ({
                                   fontSize: "0.85rem",
                                 }}
                               >
-                                {device.ip}
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  {device.ip}
+                                  {device.is_manual && (
+                                    <Chip label={t("core.devices.manual")} size="small" variant="outlined" sx={{ fontSize: "0.7rem", height: 20 }} />
+                                  )}
+                                </Box>
                               </TableCell>
                               <TableCell>
                                 <B4Badge

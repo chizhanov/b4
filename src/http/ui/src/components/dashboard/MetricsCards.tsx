@@ -3,6 +3,7 @@ import {
   Shield as ShieldIcon,
   Lan as LanIcon,
   Storage as StorageIcon,
+  BlockOutlined as BlockIcon,
 } from "@mui/icons-material";
 import { StatCard } from "./StatCard";
 import { formatNumber } from "@utils";
@@ -23,7 +24,7 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
 
   return (
     <Grid container spacing={2}>
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
           title={t("dashboard.metrics.connections")}
           value={formatNumber(metrics.total_connections)}
@@ -34,7 +35,7 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
         />
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
           title={t("dashboard.metrics.bypassed")}
           value={formatNumber(metrics.targeted_connections)}
@@ -45,13 +46,23 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
         />
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
+        <StatCard
+          title={t("dashboard.metrics.rstDropped")}
+          value={formatNumber(metrics.rst_dropped)}
+          icon={<BlockIcon />}
+          color={colors.tertiary}
+          variant="outlined"
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
           title={t("dashboard.metrics.packets")}
           value={formatNumber(metrics.packets_processed)}
           subtitle={`${metrics.current_pps.toFixed(1)} ${t("dashboard.metrics.pktPerSec")}`}
           icon={<StorageIcon />}
-          color={colors.tertiary}
+          color={colors.quaternary}
           variant="outlined"
         />
       </Grid>
