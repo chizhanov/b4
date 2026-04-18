@@ -519,10 +519,13 @@ func routeAddMasqueradeRules(be routeBackend, iface, chain string, mark uint32, 
 
 func routeCleanupRule(be routeBackend, st routeState) {
 	markStr := fmt.Sprintf("0x%x", st.mark)
+	markStrMask := fmt.Sprintf("0x%x/0x%x", st.mark, st.mark)
 	tableStr := fmt.Sprintf("%d", st.table)
 	if hasBinary("ip") {
 		routeDelRuleLoop(false, markStr, tableStr)
+		routeDelRuleLoop(false, markStrMask, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
+		routeDelRuleLoop(true, markStrMask, tableStr)
 		runLogged("routing: flush route table v4", "ip", "route", "flush", "table", tableStr)
 		runLogged("routing: flush route table v6", "ip", "-6", "route", "flush", "table", tableStr)
 	}
@@ -549,6 +552,7 @@ func routeCleanupRule(be routeBackend, st routeState) {
 func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 bool) {
 	prio := 10000 + table
 	markStr := fmt.Sprintf("0x%x", mark)
+	markStrMask := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	tableStr := fmt.Sprintf("%d", table)
 	prioStr := fmt.Sprintf("%d", prio)
 	ifaceV4 := routeGetIfaceAddr(iface, false)
@@ -556,12 +560,14 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 
 	if ipv4 {
 		routeDelRuleLoop(false, markStr, tableStr)
-		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
+		routeDelRuleLoop(false, markStrMask, tableStr)
+		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
 		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
 	}
 	if ipv6 {
 		routeDelRuleLoop(true, markStr, tableStr)
-		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
+		routeDelRuleLoop(true, markStrMask, tableStr)
+		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
 		routeReplaceDefaultRoute(iface, ifaceV6, tableStr, true)
 	}
 }
