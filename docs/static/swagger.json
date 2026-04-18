@@ -1807,6 +1807,31 @@
                 }
             }
         },
+        "/mtproto/refresh-dcs": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MTProto"
+                ],
+                "summary": "Refresh MTProto DCs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/sets": {
             "get": {
                 "security": [

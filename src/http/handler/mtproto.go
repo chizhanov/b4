@@ -16,6 +16,12 @@ func (api *API) RegisterMTProtoApi() {
 	api.mux.HandleFunc("/api/mtproto/refresh-dcs", api.handleMTProtoRefreshDCs)
 }
 
+// @Summary Refresh MTProto DCs
+// @Tags MTProto
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /mtproto/refresh-dcs [post]
 func (api *API) handleMTProtoRefreshDCs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
