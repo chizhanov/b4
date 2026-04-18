@@ -798,33 +798,51 @@ func (c *Config) Clone() *Config {
 }
 
 func (c *Config) LoadCapturePayloads() {
-	if c.ConfigPath == "" {
-		return
+	capturesDir := ""
+	if c.ConfigPath != "" {
+		capturesDir = filepath.Dir(c.ConfigPath)
 	}
-	capturesDir := filepath.Join(filepath.Dir(c.ConfigPath))
 
 	for _, set := range c.Sets {
 		if !set.Enabled {
 			continue
 		}
-		if set.Faking.SNIType == FakePayloadCapture && set.Faking.PayloadFile != "" {
+		switch set.Faking.SNIType {
+		case FakePayloadDefault1:
+			set.Faking.PayloadData = FakeSNI1
+		case FakePayloadDefault2:
+			set.Faking.PayloadData = FakeSNI2
+		case FakePayloadCustom:
+			set.Faking.PayloadData = []byte(set.Faking.CustomPayload)
+		case FakePayloadCapture:
+			if capturesDir == "" || set.Faking.PayloadFile == "" {
+				set.Faking.PayloadData = nil
+				continue
+			}
 			capturePath := filepath.Join(capturesDir, set.Faking.PayloadFile)
 			data, err := os.ReadFile(capturePath)
 			if err != nil {
 				log.Errorf("Failed to load capture file %s: %v", set.Faking.PayloadFile, err)
+				set.Faking.PayloadData = nil
 				continue
 			}
 			set.Faking.PayloadData = data
 			log.Tracef("Loaded capture payload %s (%d bytes)", set.Faking.PayloadFile, len(data))
-		}
-		if set.Faking.SNIType == FakePayloadDomain && set.Faking.PayloadDomain != "" {
+		case FakePayloadDomain:
+			if set.Faking.PayloadDomain == "" {
+				set.Faking.PayloadData = nil
+				continue
+			}
 			data, err := tlsgen.GenerateTLSClientHello(set.Faking.PayloadDomain)
 			if err != nil {
 				log.Errorf("Failed to generate domain payload for %s: %v", set.Faking.PayloadDomain, err)
+				set.Faking.PayloadData = nil
 				continue
 			}
 			set.Faking.PayloadData = data
 			log.Tracef("Generated domain payload for %s (%d bytes)", set.Faking.PayloadDomain, len(data))
+		default:
+			set.Faking.PayloadData = nil
 		}
 	}
 }
