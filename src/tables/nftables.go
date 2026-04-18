@@ -187,7 +187,11 @@ func (n *NFTablesManager) Apply() error {
 		return err
 	}
 
-	markAccept := fmt.Sprintf("0x%x", cfg.Queue.Mark)
+	markValue := cfg.Queue.Mark
+	if markValue == 0 {
+		markValue = 0x8000
+	}
+	markAccept := fmt.Sprintf("0x%x", markValue)
 
 	selectedMACs := cfg.Queue.Devices.SelectedMACs()
 	if cfg.Queue.Devices.Enabled && len(selectedMACs) > 0 {
