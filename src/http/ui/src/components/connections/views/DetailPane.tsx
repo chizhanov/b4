@@ -73,7 +73,14 @@ export const DetailPane = memo<Props>(
             bgcolor: colors.background.paper,
           }}
         >
-          <Typography sx={{ color: colors.secondary, fontWeight: 600, fontSize: 14, flex: 1 }}>
+          <Typography
+            sx={{
+              color: colors.secondary,
+              fontWeight: 600,
+              fontSize: 14,
+              flex: 1,
+            }}
+          >
             {t("connections.aggregated.detail")}
           </Typography>
           <IconButton size="small" onClick={onClose}>
@@ -93,13 +100,6 @@ export const DetailPane = memo<Props>(
               <ProtocolChip protocol={group.protocol} flags={group.flags} />
               {group.tls && (
                 <B4Badge variant="outlined" color="primary" label={group.tls} />
-              )}
-              {!matched && (
-                <B4Badge
-                  variant="outlined"
-                  color="primary"
-                  label={t("connections.aggregated.unmatched")}
-                />
               )}
             </Stack>
             <Typography

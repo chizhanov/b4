@@ -31,7 +31,7 @@ export const Sparkline = memo<SparklineProps>(({ data, width = 120, height = 24,
     return (
       <Box
         sx={{
-          width,
+          width: "100%",
           height,
           display: "flex",
           alignItems: "center",
@@ -47,7 +47,11 @@ export const Sparkline = memo<SparklineProps>(({ data, width = 120, height = 24,
   }
 
   return (
-    <svg width={width} height={height} style={{ display: "block" }}>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      style={{ display: "block", width: "100%", height }}
+    >
       <path d={path.d} fill="none" stroke={stroke} strokeWidth={1.2} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );

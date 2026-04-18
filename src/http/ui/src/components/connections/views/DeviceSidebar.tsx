@@ -140,9 +140,11 @@ export const DeviceSidebar = memo<Props>(
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Sparkline data={d.buckets} width={100} height={16} />
-                  <Typography sx={{ color: colors.text.disabled, fontSize: 10 }}>
-                    {d.groups}g · {d.packets}p
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Sparkline data={d.buckets} width={100} height={16} />
+                  </Box>
+                  <Typography sx={{ color: colors.text.disabled, fontSize: 10, fontFamily: "monospace" }}>
+                    {d.packets}
                   </Typography>
                 </Stack>
               </Stack>

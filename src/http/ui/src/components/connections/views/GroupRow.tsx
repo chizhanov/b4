@@ -30,7 +30,16 @@ const formatRelative = (ts: number, now: number): string => {
 };
 
 export const GroupRow = memo<Props>(
-  ({ group, now, selected, onSelect, onAddDomain, onAddIp, onEnrichAsn, enrichingIps }) => {
+  ({
+    group,
+    now,
+    selected,
+    onSelect,
+    onAddDomain,
+    onAddIp,
+    onEnrichAsn,
+    enrichingIps,
+  }) => {
     const { t } = useTranslation();
     const ipBase = group.destIp.split(":")[0].replaceAll(/[[\]]/g, "");
     const isEnriching = enrichingIps.has(ipBase);
@@ -50,7 +59,11 @@ export const GroupRow = memo<Props>(
           borderBottom: `1px solid ${colors.border.light}`,
           cursor: "pointer",
           bgcolor: selected ? colors.accent.primary : "transparent",
-          "&:hover": { bgcolor: selected ? colors.accent.primaryHover : colors.accent.primaryStrong },
+          "&:hover": {
+            bgcolor: selected
+              ? colors.accent.primaryHover
+              : colors.accent.primaryStrong,
+          },
           transition: "background-color 80ms",
         }}
       >
@@ -59,7 +72,12 @@ export const GroupRow = memo<Props>(
         </Box>
 
         <Box sx={{ flex: 2, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ minWidth: 0 }}
+          >
             {group.tls && (
               <B4Badge variant="outlined" color="primary" label={group.tls} />
             )}
@@ -77,7 +95,11 @@ export const GroupRow = memo<Props>(
               {group.domain || t("connections.aggregated.noDomain")}
             </Typography>
             {hasDomain && !group.hostSet && (
-              <Tooltip title={t("connections.aggregated.addDomain")} arrow placement="top">
+              <Tooltip
+                title={t("connections.aggregated.addDomain")}
+                arrow
+                placement="top"
+              >
                 <AddIcon
                   onClick={(e) => {
                     e.stopPropagation();
@@ -97,7 +119,12 @@ export const GroupRow = memo<Props>(
         </Box>
 
         <Box sx={{ flex: 1.5, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ minWidth: 0 }}
+          >
             <Typography
               sx={{
                 fontFamily: "monospace",
@@ -111,9 +138,17 @@ export const GroupRow = memo<Props>(
               {group.destIp || "—"}
             </Typography>
             {group.asnName ? (
-              <B4Badge variant="outlined" color="primary" label={group.asnName} />
+              <B4Badge
+                variant="outlined"
+                color="primary"
+                label={group.asnName}
+              />
             ) : group.destIp ? (
-              <Tooltip title={t("connections.table.enrichAsn")} arrow placement="top">
+              <Tooltip
+                title={t("connections.table.enrichAsn")}
+                arrow
+                placement="top"
+              >
                 <NetworkIcon
                   onClick={(e) => {
                     e.stopPropagation();
@@ -121,7 +156,9 @@ export const GroupRow = memo<Props>(
                   }}
                   sx={{
                     fontSize: 14,
-                    color: isEnriching ? colors.text.disabled : `${colors.secondary}88`,
+                    color: isEnriching
+                      ? colors.text.disabled
+                      : `${colors.secondary}88`,
                     "&:hover": { color: colors.secondary },
                   }}
                 />
@@ -134,7 +171,11 @@ export const GroupRow = memo<Props>(
               />
             )}
             {!group.ipSet && group.destIp && (
-              <Tooltip title={t("connections.aggregated.addIp")} arrow placement="top">
+              <Tooltip
+                title={t("connections.aggregated.addIp")}
+                arrow
+                placement="top"
+              >
                 <AddIcon
                   onClick={(e) => {
                     e.stopPropagation();
@@ -155,9 +196,10 @@ export const GroupRow = memo<Props>(
 
         <Box sx={{ width: 130, flexShrink: 0 }}>
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {group.hostSet && <B4Badge color="secondary" label={group.hostSet} />}
+            {group.hostSet && (
+              <B4Badge color="secondary" label={group.hostSet} />
+            )}
             {group.ipSet && <B4Badge color="secondary" label={group.ipSet} />}
-            {!matched && <B4Badge variant="outlined" color="primary" label={t("connections.aggregated.unmatched")} />}
           </Stack>
         </Box>
 
@@ -166,7 +208,9 @@ export const GroupRow = memo<Props>(
             <Typography
               sx={{
                 fontSize: 12,
-                color: deviceLabel ? colors.text.secondary : colors.text.disabled,
+                color: deviceLabel
+                  ? colors.text.secondary
+                  : colors.text.disabled,
                 fontFamily: group.deviceName ? "inherit" : "monospace",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -183,13 +227,25 @@ export const GroupRow = memo<Props>(
         </Box>
 
         <Box sx={{ width: 60, flexShrink: 0, textAlign: "right" }}>
-          <Typography sx={{ fontFamily: "monospace", fontSize: 12, color: colors.text.secondary }}>
+          <Typography
+            sx={{
+              fontFamily: "monospace",
+              fontSize: 12,
+              color: colors.text.secondary,
+            }}
+          >
             {group.packets}
           </Typography>
         </Box>
 
         <Box sx={{ width: 48, flexShrink: 0, textAlign: "right" }}>
-          <Typography sx={{ fontFamily: "monospace", fontSize: 11, color: colors.text.disabled }}>
+          <Typography
+            sx={{
+              fontFamily: "monospace",
+              fontSize: 11,
+              color: colors.text.disabled,
+            }}
+          >
             {formatRelative(group.lastSeen, now)}
           </Typography>
         </Box>
