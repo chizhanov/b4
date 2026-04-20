@@ -22,6 +22,8 @@ type Monitor struct {
 
 	ifaceStateMu sync.Mutex
 	ifaceState   map[string]ifaceSnapshot
+
+	linkWatcher *linkWatcher
 }
 
 type ifaceSnapshot struct {
@@ -42,15 +44,19 @@ func NewMonitor(cfgPtr *atomic.Pointer[config.Config]) *Monitor {
 	}
 
 	return &Monitor{
-		cfgPtr:     cfgPtr,
-		stop:       make(chan struct{}),
-		interval:   interval,
-		backend:    detectFirewallBackend(cfg),
-		ifaceState: make(map[string]ifaceSnapshot),
+		cfgPtr:      cfgPtr,
+		stop:        make(chan struct{}),
+		interval:    interval,
+		backend:     detectFirewallBackend(cfg),
+		ifaceState:  make(map[string]ifaceSnapshot),
+		linkWatcher: newLinkWatcher(cfgPtr),
 	}
 }
 
 func (m *Monitor) Start() {
+	if m.started {
+		return
+	}
 	cfg := m.cfgPtr.Load()
 	if cfg.System.Tables.SkipSetup || cfg.System.Tables.MonitorInterval <= 0 {
 		log.Infof("Tables monitor disabled")
@@ -61,6 +67,15 @@ func (m *Monitor) Start() {
 	m.wg.Add(1)
 	go m.monitorLoop()
 	log.Infof("Started tables monitor (backend: %s, interval: %v)", m.backend, m.interval)
+
+	if m.linkWatcher != nil {
+		if err := m.linkWatcher.Start(); err != nil {
+			log.Warnf("Link watcher failed to start, falling back to periodic monitoring only: %v", err)
+			m.linkWatcher = nil
+		} else {
+			log.Infof("Started link watcher (RTNETLINK RTMGRP_LINK)")
+		}
+	}
 }
 
 func (m *Monitor) Stop() {
@@ -68,6 +83,9 @@ func (m *Monitor) Stop() {
 		return
 	}
 
+	if m.linkWatcher != nil {
+		m.linkWatcher.Stop()
+	}
 	close(m.stop)
 	m.wg.Wait()
 	log.Infof("Stopped tables monitor")
@@ -76,7 +94,11 @@ func (m *Monitor) Stop() {
 func (m *Monitor) monitorLoop() {
 	defer m.wg.Done()
 
-	time.Sleep(5 * time.Second)
+	select {
+	case <-m.stop:
+		return
+	case <-time.After(5 * time.Second):
+	}
 
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
