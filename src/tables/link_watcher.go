@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"encoding/binary"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/josharian/native"
 	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -18,12 +18,6 @@ const (
 	linkWatcherDebounce = 500 * time.Millisecond
 )
 
-// linkWatcher subscribes to kernel RTNETLINK link events so routing can
-// react immediately when an interface referenced by a set's routing
-// config (EgressInterface or SourceInterfaces) is created or torn down.
-// This closes a gap where the periodic monitor only detects IP-address
-// changes — common with tun2socks / sing-box which destroy and recreate
-// their TUN interface with identical addressing.
 type linkWatcher struct {
 	cfgPtr *atomic.Pointer[config.Config]
 	conn   *netlink.Conn
@@ -32,12 +26,14 @@ type linkWatcher struct {
 
 	debounceMu    sync.Mutex
 	debounceTimer *time.Timer
+	pendingIfaces map[string]struct{}
 }
 
 func newLinkWatcher(cfgPtr *atomic.Pointer[config.Config]) *linkWatcher {
 	return &linkWatcher{
-		cfgPtr: cfgPtr,
-		stop:   make(chan struct{}),
+		cfgPtr:        cfgPtr,
+		stop:          make(chan struct{}),
+		pendingIfaces: make(map[string]struct{}),
 	}
 }
 
@@ -103,14 +99,11 @@ func (w *linkWatcher) loop() {
 	}
 }
 
-// parseIfInfoMsg decodes the ifinfomsg header + netlink attributes payload
-// of an RTM_NEWLINK / RTM_DELLINK message and returns the interface name
-// and whether IFF_UP is set.
 func parseIfInfoMsg(b []byte) (name string, up bool) {
 	if len(b) < ifInfoMsgSize {
 		return "", false
 	}
-	flags := binary.LittleEndian.Uint32(b[8:12])
+	flags := native.Endian.Uint32(b[8:12])
 	up = flags&unix.IFF_UP != 0
 	ad, err := netlink.NewAttributeDecoder(b[ifInfoMsgSize:])
 	if err != nil {
@@ -120,6 +113,10 @@ func parseIfInfoMsg(b []byte) (name string, up bool) {
 		if ad.Type() == unix.IFLA_IFNAME {
 			name = strings.TrimRight(ad.String(), "\x00")
 		}
+	}
+	if err := ad.Err(); err != nil {
+		log.Tracef("Link watcher: failed to decode link attributes: %v", err)
+		return "", up
 	}
 	return name, up
 }
@@ -150,28 +147,35 @@ func isWatchedIface(cfg *config.Config, ifname string) bool {
 		if set.Routing.EgressInterface == ifname {
 			return true
 		}
-		for _, src := range set.Routing.SourceInterfaces {
-			if strings.TrimSpace(src) == ifname {
-				return true
-			}
-		}
 	}
 	return false
 }
 
-// scheduleReinstall coalesces bursts of RTM_NEWLINK events (a single link
-// transition typically emits several) into one reinstall.
 func (w *linkWatcher) scheduleReinstall(ifname string) {
 	w.debounceMu.Lock()
 	defer w.debounceMu.Unlock()
+	w.pendingIfaces[ifname] = struct{}{}
 	if w.debounceTimer != nil {
-		w.debounceTimer.Stop()
+		return
 	}
 	w.debounceTimer = time.AfterFunc(linkWatcherDebounce, func() {
+		select {
+		case <-w.stop:
+			return
+		default:
+		}
+		w.debounceMu.Lock()
+		ifaces := w.pendingIfaces
+		w.pendingIfaces = make(map[string]struct{})
+		w.debounceTimer = nil
+		w.debounceMu.Unlock()
+
 		cfg := w.cfgPtr.Load()
 		if cfg == nil {
 			return
 		}
-		RoutingReinstallForInterface(cfg, ifname)
+		for iface := range ifaces {
+			RoutingReinstallForInterface(cfg, iface)
+		}
 	})
 }

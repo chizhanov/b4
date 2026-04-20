@@ -80,18 +80,22 @@ func (m *Monitor) Stop() {
 		return
 	}
 
-	close(m.stop)
-	m.wg.Wait()
 	if m.linkWatcher != nil {
 		m.linkWatcher.Stop()
 	}
+	close(m.stop)
+	m.wg.Wait()
 	log.Infof("Stopped tables monitor")
 }
 
 func (m *Monitor) monitorLoop() {
 	defer m.wg.Done()
 
-	time.Sleep(5 * time.Second)
+	select {
+	case <-m.stop:
+		return
+	case <-time.After(5 * time.Second):
+	}
 
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
