@@ -28,7 +28,6 @@ type routeState struct {
 	chainSNAT  string
 }
 
-// routeBackend abstracts firewall operations so routing works on both nftables and iptables.
 type routeBackend interface {
 	name() string
 	available() bool
@@ -68,7 +67,7 @@ func getRouteBackend(cfg *config.Config) routeBackend {
 		if nft.available() {
 			routeEngine = nft
 		}
-	default: // "iptables", "iptables-legacy"
+	default:
 		if ipt.available() {
 			routeEngine = ipt
 		}
@@ -81,7 +80,6 @@ func getRouteBackend(cfg *config.Config) routeBackend {
 	return routeEngine
 }
 
-// RoutingHandleDNS is called from the nfq DNS handler when resolved IPs are available.
 func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 	if cfg == nil || set == nil || !set.Routing.Enabled || len(ips) == 0 {
 		return
@@ -206,7 +204,7 @@ func routeCollectEntries(set *config.SetConfig) (v4, v6 []string) {
 			if err != nil || ip == nil || ipNet == nil {
 				continue
 			}
-			entry = ipNet.String() // normalized CIDR
+			entry = ipNet.String()
 			isV6 = ip.To4() == nil
 		} else {
 			ip := net.ParseIP(raw)
@@ -242,7 +240,6 @@ func RoutingClearAll() {
 		if nft.available() {
 			nft.clearAll()
 		}
-		// Try both iptables and iptables-legacy for best-effort cleanup.
 		for _, legacy := range []bool{false, true} {
 			ipt := &routeIptBackend{legacy: legacy}
 			if hasBinary(ipt.ipt4()) || hasBinary(ipt.ipt6()) {
@@ -446,8 +443,6 @@ func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
 	}
 }
 
-// --- internal orchestration ---
-
 func routeEnsureRule(be routeBackend, cfg *config.Config, set *config.SetConfig, st routeState, sources []string) error {
 	if cfg.Queue.IPv4Enabled {
 		if err := be.ensureIPSet(st.setV4, false); err != nil {
@@ -547,8 +542,6 @@ func routeCleanupRule(be routeBackend, st routeState) {
 	be.destroyIPSet(st.setV6)
 }
 
-// --- helpers ---
-
 func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 bool) {
 	prio := 10000 + table
 	markStr := fmt.Sprintf("0x%x", mark)
@@ -556,8 +549,6 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 	tableStr := fmt.Sprintf("%d", table)
 	prioStr := fmt.Sprintf("%d", prio)
 
-	// Policy rules only reference the mark/table and are safe to install
-	// even if the egress interface doesn't yet exist.
 	if ipv4 {
 		routeDelRuleLoop(false, markStr, tableStr)
 		routeDelRuleLoop(false, markStrMask, tableStr)
@@ -569,12 +560,8 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
 	}
 
-	// The default route needs the interface to exist. If it's not present
-	// (e.g. tun0 from tun2socks/sing-box hasn't come up yet), defer the
-	// install — linkWatcher triggers RoutingReinstallForInterface when the
-	// interface appears.
 	if _, err := net.InterfaceByName(iface); err != nil {
-		log.Infof("Routing: interface %s not present; default route deferred until it appears", iface)
+		log.Infof("Routing: interface %s not present (%v); default route deferred until it appears", iface, err)
 		return
 	}
 
@@ -588,12 +575,12 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 	}
 }
 
-// RoutingReinstallForInterface re-runs policy routing setup for every set
-// whose EgressInterface matches iface. Called by linkWatcher when an
-// interface (re)appears — the kernel purges routes from the custom table
-// when the interface is torn down, so we must reinstall the default route.
 func RoutingReinstallForInterface(cfg *config.Config, iface string) {
 	if cfg == nil || iface == "" || !hasBinary("ip") {
+		return
+	}
+	if _, err := net.InterfaceByName(iface); err != nil {
+		log.Tracef("Routing: interface %s no longer present; skipping reinstall", iface)
 		return
 	}
 	routeMu.Lock()

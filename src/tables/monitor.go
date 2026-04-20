@@ -54,6 +54,9 @@ func NewMonitor(cfgPtr *atomic.Pointer[config.Config]) *Monitor {
 }
 
 func (m *Monitor) Start() {
+	if m.started {
+		return
+	}
 	cfg := m.cfgPtr.Load()
 	if cfg.System.Tables.SkipSetup || cfg.System.Tables.MonitorInterval <= 0 {
 		log.Infof("Tables monitor disabled")

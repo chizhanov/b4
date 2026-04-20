@@ -19,10 +19,11 @@ const (
 )
 
 type linkWatcher struct {
-	cfgPtr *atomic.Pointer[config.Config]
-	conn   *netlink.Conn
-	stop   chan struct{}
-	wg     sync.WaitGroup
+	cfgPtr  *atomic.Pointer[config.Config]
+	conn    *netlink.Conn
+	stop    chan struct{}
+	wg      sync.WaitGroup
+	started bool
 
 	debounceMu    sync.Mutex
 	debounceTimer *time.Timer
@@ -38,6 +39,9 @@ func newLinkWatcher(cfgPtr *atomic.Pointer[config.Config]) *linkWatcher {
 }
 
 func (w *linkWatcher) Start() error {
+	if w.started {
+		return nil
+	}
 	conn, err := netlink.Dial(unix.NETLINK_ROUTE, &netlink.Config{
 		Groups: unix.RTMGRP_LINK,
 	})
@@ -45,6 +49,7 @@ func (w *linkWatcher) Start() error {
 		return err
 	}
 	w.conn = conn
+	w.started = true
 	w.wg.Add(1)
 	go w.loop()
 	return nil
