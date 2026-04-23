@@ -146,22 +146,15 @@ _openwrt_check_recommended() {
         fi
     fi
 
-    #  IPSET support
-    if ! command_exists ipset; then
-        if ! command_exists nft || command_exists iptables; then
+    if ! _nft_functional; then
+        if ! command_exists ipset; then
             rec_missing="${rec_missing} ipset"
             if [ "$B4_PKG_MANAGER" = "opkg" ]; then
                 _kmod_available "ip_set" || rec_missing="${rec_missing} kmod-ipt-ipset"
             fi
         fi
-    fi
-
-    # xt_connbytes — mandatory for the iptables backend
-    if ! _kmod_available "xt_connbytes"; then
-        if ! command_exists nft || command_exists iptables; then
-            if [ "$B4_PKG_MANAGER" = "opkg" ]; then
-                rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
-            fi
+        if ! _kmod_available "xt_connbytes" && [ "$B4_PKG_MANAGER" = "opkg" ]; then
+            rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
         fi
     fi
 

@@ -493,6 +493,11 @@ _kmod_available() {
     return 1
 }
 
+_nft_functional() {
+    command_exists nft || return 1
+    nft list ruleset >/dev/null 2>&1
+}
+
 is_b4_running() {
     for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
         if [ -f "$pf" ]; then
@@ -1404,20 +1409,15 @@ _openwrt_check_recommended() {
         fi
     fi
 
-    if ! command_exists ipset; then
-        if ! command_exists nft || command_exists iptables; then
+    if ! _nft_functional; then
+        if ! command_exists ipset; then
             rec_missing="${rec_missing} ipset"
             if [ "$B4_PKG_MANAGER" = "opkg" ]; then
                 _kmod_available "ip_set" || rec_missing="${rec_missing} kmod-ipt-ipset"
             fi
         fi
-    fi
-
-    if ! _kmod_available "xt_connbytes"; then
-        if ! command_exists nft || command_exists iptables; then
-            if [ "$B4_PKG_MANAGER" = "opkg" ]; then
-                rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
-            fi
+        if ! _kmod_available "xt_connbytes" && [ "$B4_PKG_MANAGER" = "opkg" ]; then
+            rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
         fi
     fi
 
@@ -3196,10 +3196,12 @@ action_sysinfo() {
             nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
             modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
             ipset)
-                if command_exists nft; then
+                if _nft_functional; then
                     printf "    ${YELLOW}missing${NC} %s ${DIM}(needed for routing on iptables systems)${NC}\n" "$tool" >&2
-                else
+                elif command_exists iptables || command_exists iptables-legacy; then
                     printf "    ${RED}missing${NC} %s ${DIM}(required — iptables backend in use, install ipset)${NC}\n" "$tool" >&2
+                else
+                    printf "    ${YELLOW}missing${NC} %s ${DIM}(no firewall backend detected — backend availability unclear)${NC}\n" "$tool" >&2
                 fi
                 ;;
             *) ;;
